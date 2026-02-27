@@ -1,0 +1,6 @@
+{# Shared partial: project / stack listing #}
+{# Usage: {% include "shared/_stack.tera" %} #}
+## Stack
+
+{% for project in projects %}- **{{ project.name }}** — {{ project.project_type }}
+{% endfor %}

@@ -1,0 +1,48 @@
+{#
+  GitHub Copilot custom instructions (.github/copilot-instructions.md)
+  Format: Markdown — instruction paragraphs for what to generate,
+  tech stack declarations, anti-patterns, and documentation standards.
+  Spec: https://code.visualstudio.com/docs/copilot/copilot-customization
+  Tip: Keep under ~1000 lines; use bullet points for scannability.
+#}
+{% include "shared/_header.tera" %}
+
+# Copilot Instructions — `{{ codebase_name }}`
+
+## Project Overview
+
+This repository is **`{{ codebase_name }}`** located at `{{ codebase_path }}`.
+{% if projects %}The codebase contains the following projects:
+{% for project in projects %}
+- **{{ project.name }}** (`{{ project.project_type }}`)
+{% endfor %}{% endif %}
+
+## What to Generate
+
+- Follow the existing file structure and naming conventions already in the codebase.
+- Match the language and framework idioms present in each directory.
+- When creating new files, mirror the style of adjacent files.
+- Generate complete, working implementations — avoid TODO stubs unless explicitly asked.
+
+## Anti-Patterns to Avoid
+
+- Do not introduce dependencies not already in the project.
+- Do not reformat code outside the lines you are changing.
+- Do not generate overly verbose comments — match the existing comment density.
+- Do not change unrelated files when asked to modify a specific feature.
+
+## Coding Standards
+
+- Prefer the patterns already established in the codebase.
+- Keep functions focused and small.
+- All public APIs must have documentation comments.
+- Tests must be written for all new business logic.
+{% include "shared/_conventions_inline.tera" %}
+
+{% include "shared/_skills.tera" %}
+
+## Active Tasks ({{ active_task_count }})
+{% for task in tasks %}
+- **{{ task.id }}** [{{ task.status }}] — {{ task.title }}{% if task.description %}
+  {{ task.description }}{% endif %}
+{% endfor %}{% if not tasks %}No tasks currently registered.{% endif %}

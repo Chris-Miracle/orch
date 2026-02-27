@@ -1,0 +1,38 @@
+{#
+  Gemini CLI context file (GEMINI.md — project root)
+  This is the primary instruction context for Gemini CLI.
+  Format: Markdown — project instructions, conventions, and memory.
+  Spec: https://geminicli.com / https://cloud.google.com/gemini/docs
+  Also reads .gemini/settings.json and .gemini/styleguide.md (rendered separately).
+#}
+{% include "shared/_header.tera" %}
+
+# {{ codebase_name }}
+
+This file provides persistent context for Gemini CLI operating in this repository.
+
+## Project
+
+- **Codebase:** `{{ codebase_name }}`
+- **Root:** `{{ codebase_path }}`
+
+{% include "shared/_stack.tera" %}
+
+## Conventions
+
+- Follow existing code style — indentation, naming, module layout.
+- Do not add dependencies without explicit instruction.
+- Keep changes minimal and focused.
+- Run the project test suite before marking tasks done.
+{% include "shared/_conventions_inline.tera" %}
+
+{% include "shared/_skills.tera" %}
+
+## Current Work
+
+Active tasks: **{{ active_task_count }}**
+{% include "shared/_tasks.tera" %}
+
+## Memory Notes
+
+Use `orchestra sync {{ codebase_name }}` to regenerate this file after registry changes.

@@ -1,0 +1,33 @@
+{#
+  Windsurf rules file (.windsurf/rules/orchestra.md)
+  Format: Markdown rules read by Cascade. Max 6,000 chars.
+  Activation: "always_on" (applied to every Cascade action).
+  Spec: https://docs.windsurf.com/windsurf/memories
+#}
+{% include "shared/_header.tera" %}
+
+# {{ codebase_name }} — Windsurf Rules
+
+## Project Context
+- **Codebase:** `{{ codebase_name }}`
+- **Root:** `{{ codebase_path }}`
+
+## Projects
+{% for project in projects %}- `{{ project.name }}` [{{ project.project_type }}]
+{% endfor %}
+
+## Coding Standards
+- Match existing style — indentation, naming, file structure.
+- No new dependencies unless explicitly requested.
+- Minimal, focused changes — avoid scope creep.
+- All tests must pass before task completion.
+- Prefer incremental commits; avoid large sweeps.
+{% include "shared/_conventions_inline.tera" %}
+
+{% include "shared/_skills.tera" %}
+
+## Active Tasks ({{ active_task_count }})
+{% for task in tasks %}- [{{ task.status }}] {{ task.id }}: {{ task.title }}{% if task.description %}
+  > {{ task.description }}{% endif %}
+{% endfor %}{% if not tasks %}- None.
+{% endif %}

@@ -1,0 +1,34 @@
+{#
+  Cursor rules file (.cursor/rules/orchestra.mdc)
+  Format: MDC — YAML frontmatter followed by markdown rule body.
+  Spec: https://docs.cursor.com/context/rules
+  - alwaysApply: true means this rule is always injected into context.
+  - Keep body terse and directive — no prose.
+#}
+---
+description: Orchestra project rules for {{ codebase_name }}
+alwaysApply: true
+---
+{% include "shared/_header.tera" %}
+
+# `{{ codebase_name }}` — Cursor Rules
+
+## Project
+- Root: `{{ codebase_path }}`
+{% for project in projects %}- `{{ project.name }}` [{{ project.project_type }}]
+{% endfor %}
+
+## Rules
+- Match existing code style exactly — do not reformat unrelated code.
+- Do not add dependencies without explicit instruction.
+- Prefer small, targeted edits over full-file rewrites.
+- Run tests before marking any task done.
+- Keep commits atomic and focused.
+{% include "shared/_conventions_inline.tera" %}
+
+{% include "shared/_skills.tera" %}
+
+## Active Work ({{ active_task_count }} tasks)
+{% for task in tasks %}- [{{ task.status }}] **{{ task.id }}** — {{ task.title }}
+{% endfor %}{% if not tasks %}- None registered.
+{% endif %}

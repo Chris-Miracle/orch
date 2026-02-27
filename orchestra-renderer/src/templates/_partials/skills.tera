@@ -1,0 +1,8 @@
+{# Shared partial: skills list #}
+{# Usage: {% include "shared/_skills.tera" %} #}
+{% if skills %}
+## Skills
+
+{% for skill in skills %}- {{ skill.description }}
+{% endfor %}
+{% endif %}

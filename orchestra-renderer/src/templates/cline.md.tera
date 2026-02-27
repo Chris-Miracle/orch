@@ -1,0 +1,34 @@
+{#
+  Cline rules file (.clinerules/orchestra.md)
+  Format: Markdown — flat rules and constraints, one rule per bullet.
+  The .clinerules/ directory is auto-loaded; all .md files merged.
+  Spec: https://cline.bot
+#}
+{% include "shared/_header.tera" %}
+
+# {{ codebase_name }} — Cline Rules
+
+**Codebase:** `{{ codebase_name }}` | **Root:** `{{ codebase_path }}`
+
+## Rules
+
+- Match existing code style — indentation, naming, structure.
+- Do not add dependencies without explicit instruction.
+- Keep changes minimal and scoped to the task.
+- Do not modify files unrelated to the current task.
+- Run all tests before marking a task done.
+- Write documentation for every new public function or type.
+- Never commit secrets, credentials, or API keys.
+- Prefer small, focused PRs over large sweeping changes.
+{% include "shared/_conventions_inline.tera" %}
+
+{% include "shared/_skills.tera" %}
+
+## Projects
+{% for project in projects %}- `{{ project.name }}` [{{ project.project_type }}]
+{% endfor %}
+
+## Active Tasks ({{ active_task_count }})
+{% for task in tasks %}- [{{ task.status }}] **{{ task.id }}** — {{ task.title }}
+{% endfor %}{% if not tasks %}- None registered.
+{% endif %}

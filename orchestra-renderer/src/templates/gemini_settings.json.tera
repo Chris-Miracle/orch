@@ -1,0 +1,15 @@
+{#
+  Gemini Code Assist settings (.gemini/settings.json)
+  Format: JSON — persistent Gemini CLI configuration.
+  Spec: https://cloud.google.com/gemini/docs
+  This file is rendered as JSON via the json_encode filter.
+#}
+{
+  "codebase": "{{ codebase_name }}",
+  "root": "{{ codebase_path }}",
+  "projects": {{ projects | json_encode(pretty=false) }},
+  "context": {
+    "active_task_count": {{ active_task_count }},
+    "managed_by": "orchestra"
+  }
+}

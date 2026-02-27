@@ -98,10 +98,51 @@ cargo clippy --workspace -- -D warnings
 
 ---
 
-## Phase 02 — Template Engine 🔜
+## Phase 02 — Template Engine ✅
 
 *Per-agent file rendering, hash store, atomic writes.*
-Coming: `orchestra sync` — renders agent config files from registry state.
+
+### What was implemented
+
+| Area | Detail |
+|---|---|
+| Sync command | `orchestra sync <codebase>` and `orchestra sync --all` |
+| Rendering | Agent files generated for Claude, Cursor, Windsurf, Copilot, Codex, Gemini, Cline, Antigravity |
+| Write safety | Atomic writes via `.orchestra.tmp` + rename; unchanged content is skipped by SHA-256 hash |
+| Hash store | Per-codebase hash file at `~/.orchestra/hashes/<codebase>.json` |
+| Library APIs | `orchestra_sync::{sync_codebase, sync_all}` and `orchestra_renderer::{Renderer, TemplateEngine}` |
+
+### Using it
+
+**Sync one registered codebase:**
+```bash
+orchestra sync copnow_api
+```
+
+**Preview without writing files:**
+```bash
+orchestra sync copnow_api --dry-run
+```
+
+**Sync all registered codebases:**
+```bash
+orchestra sync --all
+```
+
+**Where files are written:**
+```text
+<codebase>/CLAUDE.md
+<codebase>/.cursor/rules/orchestra.mdc
+<codebase>/.windsurf/rules/orchestra.md
+<codebase>/.github/copilot-instructions.md
+<codebase>/AGENTS.md
+<codebase>/GEMINI.md
+<codebase>/.gemini/settings.json
+<codebase>/.gemini/styleguide.md
+<codebase>/.clinerules/orchestra.md
+<codebase>/.agent/rules/orchestra.md
+~/.orchestra/hashes/<codebase>.json
+```
 
 ---
 

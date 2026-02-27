@@ -5,3 +5,16 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+orchestra-core     = { path = "../orchestra-core" }
+orchestra-renderer = { path = "../orchestra-renderer" }
+sha2       = "0.10"
+hex        = "0.4"
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror  = "1"
+tracing    = { package = "log", version = "0.4" }
+chrono     = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+tempfile = "3"
+env_logger = "0.11"

@@ -1,0 +1,46 @@
+{#
+  Gemini Code Assist styleguide (.gemini/styleguide.md)
+  Format: Markdown — code style rules and conventions for code review.
+  Spec: https://cloud.google.com/gemini/docs
+#}
+{% include "shared/_header.tera" %}
+
+# Style Guide — `{{ codebase_name }}`
+
+This file defines code-review standards and style conventions for Gemini Code Assist.
+
+## General
+
+- Match the style of adjacent files in every edit.
+- Preserve existing indentation — do not reformat beyond the changed lines.
+- Keep line length consistent with the rest of the file.
+
+## Naming
+
+- Use descriptive names — avoid single-letter variables outside short loop indices.
+- Follow the naming convention of the language in use (snake_case, camelCase, PascalCase, etc.).
+
+## Documentation
+
+- All public functions and types must have documentation comments.
+- Comments should explain *why*, not *what* — the code shows what.
+
+## Testing
+
+- Every new business-logic function requires at least one unit test.
+- Test edge cases: empty inputs, boundary values, and error paths.
+
+## Security
+
+- Never commit secrets, credentials, or API keys.
+- Validate all inputs on the server side.
+- Use parameterized queries — never string-interpolate user input into SQL.
+
+{% include "shared/_conventions_section.tera" %}
+
+{% include "shared/_skills.tera" %}
+
+## Projects in This Codebase
+{% for project in projects %}
+- `{{ project.name }}` ({{ project.project_type }})
+{% endfor %}
