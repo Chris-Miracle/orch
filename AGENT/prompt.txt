@@ -1,0 +1,21 @@
+Update phases.md (located at the repo root) to document the phase that was just completed.
+
+Follow this exact process:
+
+1. Find the section in phases.md for the phase number you just finished (e.g. "Phase 02").
+2. Change its status from 🔜 to ✅.
+3. Replace the placeholder text with a concise summary structured exactly like the Phase 01 section:
+   - A "What was implemented" table (Area | Detail rows)
+   - A "Using it" section with real shell commands the user can run right now
+   - Keep it short — no prose walls, only what someone needs to actually use it
+
+4. Do NOT touch any other phase section.
+5. Do NOT change the "Getting Started" block at the top.
+
+The document is read by someone who just cloned the repo and wants to know:
+- What new `orchestra` commands or APIs are available
+- Exactly how to call them
+- Where any new files or config live on disk
+
+After updating phases.md, confirm which section was updated and paste the final
+text of that section so I can verify it looks right before committing.
