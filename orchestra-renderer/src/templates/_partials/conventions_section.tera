@@ -1,0 +1,8 @@
+{# Shared partial: conventions section #}
+{# Usage: {% include "shared/_conventions_section.tera" %} #}
+{% if conventions %}
+## Additional Conventions
+
+{% for convention in conventions %}- {{ convention }}
+{% endfor %}
+{% endif %}

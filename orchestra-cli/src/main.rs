@@ -6,6 +6,8 @@
 //! orchestra init <path> --project <name> [--type backend|frontend|mobile|ml] [--detect]
 //! orchestra project list
 //! orchestra project add <name> [--type ...]
+//! orchestra sync <codebase> [--dry-run]
+//! orchestra sync --all [--dry-run]
 //! ```
 
 mod commands;
@@ -16,7 +18,7 @@ use std::str::FromStr;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
-use commands::{init::InitArgs, project::ProjectCommand};
+use commands::{init::InitArgs, project::ProjectCommand, sync::SyncArgs};
 use orchestra_core::types::ProjectType;
 
 // ---------------------------------------------------------------------------
@@ -45,6 +47,9 @@ enum Commands {
         #[command(subcommand)]
         command: ProjectCommand,
     },
+
+    /// Render and write per-agent instruction files for a codebase.
+    Sync(SyncArgs),
 }
 
 // ---------------------------------------------------------------------------
@@ -90,7 +95,8 @@ impl From<ProjectTypeArg> for ProjectType {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Commands::Init(args) => args.run(),
-        Commands::Project { command } => commands::project::run(command),
+        Commands::Init(args)             => args.run(),
+        Commands::Project { command }    => commands::project::run(command),
+        Commands::Sync(args)             => args.run(),
     }
 }

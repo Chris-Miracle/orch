@@ -1,0 +1,12 @@
+{# Shared partial: task list with status badges #}
+{# Usage: {% include "shared/_tasks.tera" %} #}
+{% if tasks %}
+## Active Tasks
+
+| ID | Title | Status |
+|---|---|---|
+{% for task in tasks %}| {{ task.id }} | {{ task.title }} | {{ task.status }} |
+{% endfor %}
+{% else %}
+No tasks registered.
+{% endif %}

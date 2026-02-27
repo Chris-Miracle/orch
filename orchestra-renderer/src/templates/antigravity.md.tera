@@ -1,0 +1,44 @@
+{#
+  Antigravity rules file (.agent/rules/orchestra.md)
+  Format: Markdown with YAML frontmatter.
+  - trigger: always_on — rule is applied to every agent action.
+  - description: used by the model when deciding rule relevance.
+  - Max 12,000 chars per rule file.
+  Spec: https://antigravity.google/docs/customizations
+#}
+---
+trigger: always_on
+description: Orchestra-managed project rules for {{ codebase_name }}
+---
+{% include "shared/_header.tera" %}
+
+# {{ codebase_name }} — Project Rules
+
+## Context
+
+- **Codebase:** `{{ codebase_name }}`
+- **Root:** `{{ codebase_path }}`
+- **Managed by:** Orchestra
+
+## Projects
+{% for project in projects %}- `{{ project.name }}` [{{ project.project_type }}]
+{% endfor %}
+
+## Rules
+
+- Match existing code style — do not reformat adjacent code.
+- Do not add dependencies without explicit instruction.
+- Keep edits minimal and targeted to the request.
+- All new code requires tests. Run the full test suite before completion.
+- Write clear commit messages explaining what changed and why.
+- Never commit secrets, credentials, or API keys.
+- When uncertain about approach, ask for clarification.
+{% include "shared/_conventions_inline.tera" %}
+
+{% include "shared/_skills.tera" %}
+
+## Active Tasks ({{ active_task_count }})
+{% for task in tasks %}- [{{ task.status }}] **{{ task.id }}** — {{ task.title }}{% if task.description %}
+  > {{ task.description }}{% endif %}
+{% endfor %}{% if not tasks %}- None registered.
+{% endif %}

@@ -1,0 +1,6 @@
+{# Shared partial: inline conventions list #}
+{# Usage: {% include "shared/_conventions_inline.tera" %} #}
+{% if conventions %}
+{% for convention in conventions %}- {{ convention }}
+{% endfor %}
+{% endif %}

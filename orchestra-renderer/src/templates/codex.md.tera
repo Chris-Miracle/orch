@@ -1,0 +1,51 @@
+{#
+  OpenAI Codex / AGENTS.md
+  Format: Structured Markdown with headers — Project, Stack, Architecture, Rules, Tasks.
+  This file is also read by Cursor, Copilot (as AGENTS.md fallback), and other agents.
+  Spec: https://platform.openai.com/docs/guides/codex
+  Global AGENTS.md: ~/.codex/AGENTS.md | Project root: AGENTS.md
+#}
+{% include "shared/_header.tera" %}
+
+# AGENTS.md — `{{ codebase_name }}`
+
+> This file provides instructions for AI coding agents operating in this repository.
+> It is automatically maintained by Orchestra. Do not edit by hand.
+
+## Project
+
+- **Name:** `{{ codebase_name }}`
+- **Root:** `{{ codebase_path }}`
+- **Active tasks:** {{ active_task_count }}
+
+## Stack
+{% for project in projects %}
+- `{{ project.name }}` — `{{ project.project_type }}`
+{% endfor %}
+
+## Architecture
+
+Refer to the project README and inline documentation for architecture details.
+When in doubt about where code belongs, ask rather than guessing.
+
+## Rules
+
+- **Style:** Match existing conventions in each file. Do not reformat unrelated code.
+- **Dependencies:** Do not add new libraries without explicit approval.
+- **Scope:** Keep changes minimal and targeted; avoid unrelated modifications.
+- **Tests:** All new code must have corresponding tests. Run the full test suite before marking a task done.
+- **Commits:** Write clear commit messages describing *what* changed and *why*.
+- **PRs:** Keep pull requests small and focused on a single concern.
+- **Security:** Never commit secrets, credentials, or API keys.
+{% include "shared/_conventions_inline.tera" %}
+
+{% include "shared/_skills.tera" %}
+
+## Tasks
+{% for task in tasks %}
+### {{ task.id }} — {{ task.title }}
+
+- **Status:** `{{ task.status }}`
+{% if task.description %}- **Description:** {{ task.description }}
+{% endif %}
+{% endfor %}{% if not tasks %}No tasks currently registered.{% endif %}

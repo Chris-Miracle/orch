@@ -1,0 +1,43 @@
+{#
+  Claude code agent context file (CLAUDE.md)
+  Format: Markdown — verbose narrative with sections for overview, stack, conventions, tasks.
+  Spec: https://docs.anthropic.com/en/docs/claude-code/memory
+#}
+{% include "shared/_header.tera" %}
+
+# {{ codebase_name }}
+
+This is the project memory file for Claude Code. It provides persistent context
+about the codebase structure, conventions, and active work items so you do not
+need to re-explain the project at the start of each session.
+
+## Project Overview
+
+- **Codebase:** `{{ codebase_name }}`
+- **Root:** `{{ codebase_path }}`
+- **Active tasks:** {{ active_task_count }}
+
+{% include "shared/_stack.tera" %}
+
+## Conventions
+
+- Follow existing code style — match indentation, naming, and module structure.
+- Never introduce new dependencies without confirming necessity.
+- Keep changes minimal and focused; avoid unrelated refactors.
+- Run the project's test suite before marking a task complete.
+- Prefer small, reviewable commits over large sweeping changes.
+{% include "shared/_conventions_inline.tera" %}
+
+{% include "shared/_skills.tera" %}
+
+## Development Commands
+
+Refer to the README or project root for build, test, and lint commands.
+Ask for clarification if you are unsure which commands apply.
+
+{% include "shared/_tasks.tera" %}
+
+## Notes
+
+- Registry YAML is the source of truth; rendered agent files are outputs.
+- Use `orchestra sync {{ codebase_name }}` to regenerate this file after registry changes.
