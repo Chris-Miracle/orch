@@ -1,0 +1,34 @@
+agents.max_threads = 8
+agents.max_depth = 1
+
+[agents.orchestra_orchestrator]
+description = "Coordinate multi-phase implementation plans and assign work to specialized agents while preserving phase order and quality gates."
+config_file = "agents/orchestra-orchestrator.toml"
+
+[agents.rust_foundation_engineer]
+description = "Implement and harden core Rust registry, types, and CLI foundations with atomic persistence and strict error handling."
+config_file = "agents/rust-foundation-engineer.toml"
+
+[agents.template_sync_engineer]
+description = "Build and maintain deterministic template rendering, hash tracking, and sync no-op behavior across all target agent files."
+config_file = "agents/template-sync-engineer.toml"
+
+[agents.staleness_observability_engineer]
+description = "Design status, drift, and diff visibility for registry-to-agent synchronization health."
+config_file = "agents/staleness-observability-engineer.toml"
+
+[agents.daemon_runtime_engineer]
+description = "Implement resilient daemon, file watching, debounce handling, and launchd integration for low-latency background sync."
+config_file = "agents/daemon-runtime-engineer.toml"
+
+[agents.writeback_protocol_engineer]
+description = "Implement structured writeback command parsing, atomic apply/strip flows, and remediation error blocks."
+config_file = "agents/writeback-protocol-engineer.toml"
+
+[agents.qa_reliability_reviewer]
+description = "Review for correctness, regressions, missing tests, and safety violations across all phases."
+config_file = "agents/qa-reliability-reviewer.toml"
+
+[agents.harness_context_curator]
+description = "Maintain concise, durable context systems and constraint-driven guidance aligned with Harness Engineering."
+config_file = "agents/harness-context-curator.toml"

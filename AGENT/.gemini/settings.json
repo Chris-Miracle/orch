@@ -1,0 +1,16 @@
+{
+  "orchestra": {
+    "phase_order_enforced": true,
+    "deterministic_rendering": true,
+    "atomic_writes_required": true,
+    "writeback_protocol": {
+      "enabled": true,
+      "error_block_required": true
+    }
+  },
+  "context_files": [
+    "GEMINI.md",
+    ".gemini/styleguide.md",
+    "AGENTS.md"
+  ]
+}

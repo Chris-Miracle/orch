@@ -1,0 +1,8 @@
+---
+description: Rust foundation standards
+globs: ["**/*.rs", "**/Cargo.toml"]
+alwaysApply: false
+---
+- No unwrap/expect in library crates.
+- Use typed errors and actionable messages.
+- Validate serialization roundtrips for schema changes.

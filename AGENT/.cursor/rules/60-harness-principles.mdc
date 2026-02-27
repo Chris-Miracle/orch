@@ -1,0 +1,7 @@
+---
+description: Harness engineering alignment
+alwaysApply: true
+---
+- Convert repeated guidance into constraints and checks.
+- Keep instruction files concise and scoped.
+- Prioritize observability and feedback loops for agent reliability.

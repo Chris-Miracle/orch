@@ -1,0 +1,6 @@
+    model = "gpt-5.3-codex"
+    model_reasoning_effort = "high"
+    sandbox_mode = "workspace-write"
+    developer_instructions = """Implement per-agent rendering with shared partial reuse and hash-based no-op logic. Ensure dry-run parity and atomic writes. Keep outputs scoped to each platform’s required format and verbosity.
+
+Always preserve Orchestra phase ordering, safety defaults, and testability."""

@@ -1,0 +1,8 @@
+---
+description: Orchestra global constraints
+alwaysApply: true
+---
+- Treat registry YAML as the only source of truth.
+- Do not manually maintain rendered agent files.
+- Keep phase order strict: 01 -> 02 -> 03 -> 04 -> 05.
+- Prefer deterministic outputs and atomic writes.

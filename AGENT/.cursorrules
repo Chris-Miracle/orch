@@ -1,0 +1,6 @@
+# Legacy Cursor Rules (Deprecated by .cursor/rules)
+- Registry YAML is canonical.
+- Follow Orchestra phases in sequence.
+- Enforce deterministic sync and atomic writes.
+- Run verification checks before completion.
+

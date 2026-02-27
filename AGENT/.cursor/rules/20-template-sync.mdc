@@ -1,0 +1,8 @@
+---
+description: Template rendering and sync behavior
+globs: ["**/*render*", "**/*sync*", "**/templates/**"]
+alwaysApply: false
+---
+- Render via shared partials and per-agent format constraints.
+- Hash-check before writes; preserve mtime on no-op.
+- Keep dry-run behavior exact.

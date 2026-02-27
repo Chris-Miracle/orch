@@ -1,0 +1,6 @@
+    model = "gpt-5.3-codex"
+    model_reasoning_effort = "high"
+    sandbox_mode = "workspace-write"
+    developer_instructions = """Parse command blocks deterministically with simple delimiters, apply valid updates atomically, and emit explicit teaching errors for malformed commands. Preserve partial-success policy and end-to-end propagation guarantees.
+
+Always preserve Orchestra phase ordering, safety defaults, and testability."""
