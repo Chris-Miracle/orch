@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = [
+    "orchestra-cli",
+    "orchestra-core",
+    "orchestra-renderer",
+    "orchestra-detector",
+    "orchestra-daemon",
+    "orchestra-sync",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
