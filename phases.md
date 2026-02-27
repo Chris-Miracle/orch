@@ -2,29 +2,40 @@
 
 ---
 
-## Getting Started (First Time)
+## Getting Started
 
-Orchestra is a native CLI tool written in Rust. No pip, no npm — you install it once at the OS level via Cargo.
+Orchestra is a native CLI binary — no pip, no npm, no Node, no Python needed.
 
-**Prerequisite: Rust toolchain**
+### Option 1 — curl installer (no Rust required) ⭐
+
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+curl -fsSL https://raw.githubusercontent.com/chris-miracle/orch/main/install.sh | sh
 ```
 
-**Clone and install**
+Downloads the pre-built binary for your platform (macOS arm64/x86_64, Linux x86_64) and installs it to `~/.local/bin`. That's it.
+
+### Option 2 — if you have Rust installed
+
 ```bash
-git clone https://github.com/yourorg/orch.git
+cargo install --git https://github.com/chris-miracle/orch --bin orchestra
+```
+
+No cloning needed. Cargo fetches, compiles, and drops `orchestra` on your PATH.
+
+### Option 3 — build from source
+
+```bash
+git clone https://github.com/chris-miracle/orch.git
 cd orch
 cargo install --path orchestra-cli
 ```
-
-This puts the `orchestra` binary in `~/.cargo/bin/` (already on your PATH after rustup setup). You can now run `orchestra` from anywhere.
 
 **Verify**
 ```bash
 orchestra --version
 orchestra --help
 ```
+
 
 ---
 
