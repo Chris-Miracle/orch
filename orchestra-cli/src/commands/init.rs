@@ -15,7 +15,8 @@ pub struct InitArgs {
     /// Absolute or relative path to the codebase root directory.
     pub path: PathBuf,
 
-    /// Logical project name (e.g. "api", "mobile-app").
+    /// Project group name (e.g. "copnow", "myapp"). Creates
+    /// ~/.orchestra/projects/<project>/<codebase>.yaml
     #[arg(long, short = 'p')]
     pub project: String,
 
@@ -35,13 +36,14 @@ impl InitArgs {
             format!("cannot resolve path '{}'", self.path.display())
         })?;
 
-        let registry = registry::init(path.clone(), ProjectName::from(self.project), project_type)
-            .with_context(|| format!("failed to init registry for '{}'", path.display()))?;
+        let project = self.project.clone();
+        let codebase = registry::init(path.clone(), ProjectName::from(self.project), project_type)
+            .with_context(|| format!("failed to init '{}' under project '{}'", path.display(), project))?;
 
-        let codebase_count = registry.codebases.len();
+        println!("✓ Registered '{}' under project '{}'", codebase.name, project);
         println!(
-            "✓ Initialized orchestra registry ({codebase_count} codebase{})",
-            if codebase_count == 1 { "" } else { "s" }
+            "  Saved to: ~/.orchestra/projects/{}/{}.yaml",
+            project, codebase.name
         );
         Ok(())
     }
