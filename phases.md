@@ -195,9 +195,58 @@ orchestra sync --all
 
 ---
 
-## Phase 04 — Daemon / Watcher 🔜
+## Phase 04 — Daemon / Watcher ✅
 
 *Background autosync, launchd integration, file watching.*
+
+### What was implemented
+
+| Area | Detail |
+|---|---|
+| Daemon runtime | New `orchestra-daemon` crate with Tokio tasks for watcher, sync processor, and Unix socket server |
+| Watcher behavior | Watches `~/.orchestra/projects/` registry tree (directory-based FSEvents, debounced) and triggers sync on YAML create/modify |
+| CLI commands | `orchestra daemon start`, `stop`, `status`, `install`, `uninstall`, `logs` |
+| Socket protocol | Newline-delimited JSON over Unix socket: `{"cmd":"status"}`, `{"cmd":"sync","codebase":"..."}`, `{"cmd":"stop"}` |
+| launchd integration | Programmatic plist generation + install/uninstall for `dev.orchestra.daemon` |
+| Library APIs | `orchestra_daemon::{start_blocking, request_status, request_stop, request_sync, install_launchd, uninstall_launchd}` and `orchestra_sync::pipeline::run` |
+
+### Using it
+
+**Run daemon in foreground:**
+```bash
+orchestra daemon start
+```
+
+**Check daemon status (JSON):**
+```bash
+orchestra daemon status
+```
+
+**Request a graceful daemon stop:**
+```bash
+orchestra daemon stop
+```
+
+**Install/uninstall launchd service (macOS):**
+```bash
+orchestra daemon install
+orchestra daemon uninstall
+```
+
+**Read daemon logs:**
+```bash
+orchestra daemon logs
+orchestra daemon logs --stderr-only --lines 200
+```
+
+**Where daemon state lives:**
+```text
+~/.orchestra/projects/                           ← watched registry tree
+~/.orchestra/daemon.sock                         ← Unix socket
+~/.orchestra/logs/daemon.log
+~/.orchestra/logs/daemon-err.log
+~/Library/LaunchAgents/dev.orchestra.daemon.plist
+```
 
 ---
 

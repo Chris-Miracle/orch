@@ -32,15 +32,25 @@ pub struct InitArgs {
 impl InitArgs {
     pub fn run(self) -> Result<()> {
         let project_type = self.project_type.map(|p| p.into());
-        let path = self.path.canonicalize().with_context(|| {
-            format!("cannot resolve path '{}'", self.path.display())
-        })?;
+        let path = self
+            .path
+            .canonicalize()
+            .with_context(|| format!("cannot resolve path '{}'", self.path.display()))?;
 
         let project = self.project.clone();
         let codebase = registry::init(path.clone(), ProjectName::from(self.project), project_type)
-            .with_context(|| format!("failed to init '{}' under project '{}'", path.display(), project))?;
+            .with_context(|| {
+                format!(
+                    "failed to init '{}' under project '{}'",
+                    path.display(),
+                    project
+                )
+            })?;
 
-        println!("✓ Registered '{}' under project '{}'", codebase.name, project);
+        println!(
+            "✓ Registered '{}' under project '{}'",
+            codebase.name, project
+        );
         println!(
             "  Saved to: ~/.orchestra/projects/{}/{}.yaml",
             project, codebase.name

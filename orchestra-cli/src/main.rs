@@ -10,6 +10,7 @@
 //! orchestra sync --all [--dry-run]
 //! orchestra status [--project <name>] [--json]
 //! orchestra diff <codebase>
+//! orchestra daemon start|stop|status|install|uninstall|logs
 //! ```
 
 mod commands;
@@ -21,7 +22,8 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use commands::{
-    diff::DiffArgs, init::InitArgs, project::ProjectCommand, status::StatusArgs, sync::SyncArgs,
+    daemon::DaemonCommand, diff::DiffArgs, init::InitArgs, project::ProjectCommand,
+    status::StatusArgs, sync::SyncArgs,
 };
 use orchestra_core::types::ProjectType;
 
@@ -60,6 +62,12 @@ enum Commands {
 
     /// Show unified diff of what sync would write for a codebase.
     Diff(DiffArgs),
+
+    /// Manage Orchestra background daemon and launchd integration.
+    Daemon {
+        #[command(subcommand)]
+        command: DaemonCommand,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -110,5 +118,6 @@ fn main() -> Result<()> {
         Commands::Sync(args) => args.run(),
         Commands::Status(args) => args.run(),
         Commands::Diff(args) => args.run(),
+        Commands::Daemon { command } => commands::daemon::run(command),
     }
 }

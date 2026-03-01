@@ -33,5 +33,8 @@ pub enum SyncError {
 
 /// Convenience constructor for [`SyncError::Io`].
 pub(crate) fn io_err(path: impl Into<PathBuf>, source: std::io::Error) -> SyncError {
-    SyncError::Io { path: path.into(), source }
+    SyncError::Io {
+        path: path.into(),
+        source,
+    }
 }

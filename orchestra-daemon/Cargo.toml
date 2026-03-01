@@ -5,3 +5,19 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+tokio = { version = "1", features = ["full"] }
+notify = { version = "6", features = ["macos_fsevent"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+thiserror = "1"
+orchestra-core = { path = "../orchestra-core" }
+orchestra-sync = { path = "../orchestra-sync" }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["test-util"] }
+tokio-test = "0.4"
+tempfile = "3"
+assert_cmd = "2"
+plist = "1"

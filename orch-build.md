@@ -1,351 +1,569 @@
-# Orchestra - Phase 03 Build Reference
+# Orchestra - Phase 04 Build Reference
 
-Complete implementation record for Phase 03 (staleness detection, status visibility, and pre-sync diff observability).
+Complete implementation record for Phase 04 (daemon runtime, registry watcher, Unix socket control plane, and launchd integration).
 
 ---
 
-## Phase 03 Outcome
+## Phase 04 Outcome
 
 - Status: Completed
 - New user command surface:
-  - `orchestra status [--project <name>] [--json]`
-  - `orchestra diff <codebase>`
-- New sync observability modules:
-  - `orchestra-sync::staleness`
-  - `orchestra-sync::diff`
-- Expanded sync signal model:
-  - `NeverSynced`, `Current`, `Stale`, `Modified`, `Orphan`
-- Freshness source of truth:
-  - hash-store `synced_at` timestamp + registry YAML mtime
+  - `orchestra daemon start`
+  - `orchestra daemon stop`
+  - `orchestra daemon status`
+  - `orchestra daemon install`
+  - `orchestra daemon uninstall`
+  - `orchestra daemon logs [--stderr-only] [--lines <n>]`
+- New daemon crate:
+  - `orchestra-daemon`
+- New shared sync pipeline API:
+  - `orchestra_sync::pipeline::run(...)`
+- Runtime architecture:
+  - Tokio multi-thread runtime
+  - 3 long-running tasks: watcher, sync_processor, socket_server
+  - 1 shutdown signal task: ctrl-c listener
+- Shared daemon state:
+  - `Arc<RwLock<RegistryCache>>`
+  - `type RegistryCache = HashMap<CodebaseName, Codebase>`
+- Registry watch scope (Phase 04):
+  - Watches only `~/.orchestra/projects/**` YAML registry tree
+  - Does NOT watch codebase directories yet
 
 ---
 
 ## Validation Executed
 
+Formatting checks run on all touched Phase 04 Rust files:
+
 ```bash
-PATH="$HOME/.cargo/bin:$PATH" cargo test --workspace
-PATH="$HOME/.cargo/bin:$PATH" cargo test --workspace --offline
-PATH="$HOME/.cargo/bin:$PATH" cargo clippy --workspace --all-targets --offline -- -D warnings
+PATH="$HOME/.cargo/bin:$PATH" rustfmt --edition 2021 --check \
+  orchestra-daemon/src/runtime.rs \
+  orchestra-daemon/src/launchd.rs \
+  orchestra-daemon/src/protocol.rs \
+  orchestra-daemon/src/paths.rs \
+  orchestra-cli/tests/phase04_daemon_autosync.rs
 ```
 
 Result:
-- All workspace tests passed.
-- Clippy passed with `-D warnings`.
+- Formatting passed.
+
+Build/test note:
+- Full `cargo check`/`cargo test` could not be executed in this environment because crates.io network access is blocked (new Phase 04 dependencies cannot be fetched offline).
 
 ---
 
-## Complete File Manifest (Phase 03)
+## Complete File Manifest (Phase 04)
 
-| Path | State | Phase 03 change |
+| Path | State | Phase 04 change |
 |---|---|---|
-| `Cargo.lock` | Modified | Lockfile refreshed for Phase 03 deps (`similar`, `colored`, `tabled`, `filetime`, `assert_cmd`, `predicates`, and transitive crates). |
-| `orchestra-cli/Cargo.toml` | Modified | Added runtime deps for status output/JSON (`colored`, `tabled`, `serde`, `serde_json`) and test deps (`assert_cmd`, `predicates`). |
-| `orchestra-cli/src/commands/mod.rs` | Modified | Added command modules `status` and `diff`. |
-| `orchestra-cli/src/main.rs` | Modified | Registered `Status` and `Diff` in clap tree and command dispatch. |
-| `orchestra-sync/Cargo.toml` | Modified | Added `similar` for unified diff generation; added `filetime` dev-dependency for mtime test control. |
-| `orchestra-sync/src/lib.rs` | Modified | Exported new modules/APIs: `diff`, `staleness`, `diff_codebase`, `DiffCodebaseResult`, `FileDiff`, `StalenessSignal`. |
-| `orchestra-sync/src/writer.rs` | Modified | Added `find_codebase_at`/shared context helpers and persisted `synced_at` as `sync_started_at` on real sync completion. |
-| `phases.md` | Modified | Marked Phase 03 complete and documented user-facing commands/state locations. |
-| `orchestra-cli/src/commands/diff.rs` | New | Implemented `orchestra diff <codebase>` command with unified diff output. |
-| `orchestra-cli/src/commands/status.rs` | New | Implemented `orchestra status` command with table + JSON output and project filtering. |
-| `orchestra-cli/tests/status_and_diff.rs` | New | Added end-to-end CLI tests for diff accuracy and status JSON schema/status correctness. |
-| `orchestra-sync/src/diff.rs` | New | Implemented in-memory render diff engine with unified diff output and line-ending normalization. |
-| `orchestra-sync/src/staleness.rs` | New | Implemented Phase 03 staleness algorithm and signal model with unit tests. |
-| `orchestra-sync/tests/phase03_staleness.rs` | New | Added integration tests for Stale/Modified/Current/NeverSynced scenarios using controlled mtimes. |
+| `orchestra-daemon/Cargo.toml` | Modified | Added runtime deps (`tokio`, `notify`, `serde`, `serde_json`, `tracing`, `tracing-subscriber`, `thiserror`, core/sync crates) and dev deps (`tokio-test`, `tempfile`, `assert_cmd`, `plist`). |
+| `orchestra-daemon/src/lib.rs` | Added | Public module surface for daemon runtime, protocol, launchd, path helpers, and exported APIs/types. |
+| `orchestra-daemon/src/error.rs` | Added | `DaemonError` model for I/O, notify, registry, sync, JSON, channel, protocol, daemon-not-running, and launchd failures. |
+| `orchestra-daemon/src/paths.rs` | Added | Canonical daemon constants/path helpers (label, debounce window, socket/log/plist locations). |
+| `orchestra-daemon/src/protocol.rs` | Added | JSON newline socket protocol request/response types and client helpers (`status`, `sync`, `stop`) with startup race retry for status. |
+| `orchestra-daemon/src/launchd.rs` | Added | launchd plist generation, install/uninstall orchestration, `launchctl` execution, UID domain resolution, plist unit test. |
+| `orchestra-daemon/src/runtime.rs` | Added | Tokio daemon runtime with watcher, sync queue processor, socket server, ctrl-c shutdown, debounce, stale-socket handling, and runtime unit tests. |
+| `orchestra-cli/Cargo.toml` | Modified | Added dependency on `orchestra-daemon`. |
+| `orchestra-cli/src/main.rs` | Modified | Added `daemon` command family to Clap command tree and dispatch. |
+| `orchestra-cli/src/commands/mod.rs` | Modified | Registered `daemon` command module. |
+| `orchestra-cli/src/commands/daemon.rs` | Added | Implemented `start|stop|status|install|uninstall|logs` CLI behavior. |
+| `orchestra-cli/src/commands/sync.rs` | Modified | Switched sync execution to shared pipeline API (`orchestra_sync::pipeline::run`). |
+| `orchestra-sync/src/lib.rs` | Modified | Added `pipeline` module export and `SyncScope` re-export. |
+| `orchestra-sync/src/pipeline.rs` | Added | Introduced shared pipeline entrypoint used by CLI and daemon; added pipeline unit tests. |
+| `orchestra-cli/tests/phase04_daemon_autosync.rs` | Added | Integration test that spawns real daemon process and verifies registry YAML change auto-syncs generated files. |
 
 ---
 
-## CLI Surface Added in Phase 03
+## Workspace and Dependency Delta
+
+### New crate dependencies (`orchestra-daemon`)
+
+```toml
+tokio = { version = "1", features = ["full"] }
+notify = { version = "6", features = ["macos_fsevent"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+thiserror = "1"
+orchestra-core = { path = "../orchestra-core" }
+orchestra-sync = { path = "../orchestra-sync" }
+```
+
+### New daemon dev dependencies
+
+```toml
+tokio = { version = "1", features = ["test-util"] }
+tokio-test = "0.4"
+tempfile = "3"
+assert_cmd = "2"
+plist = "1"
+```
+
+### CLI dependency changes
+
+- Added: `orchestra-daemon = { path = "../orchestra-daemon" }`
+
+### Sync crate API changes
+
+- Added module: `orchestra_sync::pipeline`
+- Added type: `orchestra_sync::pipeline::SyncScope`
+- Added function: `orchestra_sync::pipeline::run(home, scope, dry_run)`
+
+---
+
+## CLI Surface Added in Phase 04
 
 Implemented in:
-- `/Users/chris/Dev/OS/orch/orchestra-cli/src/commands/status.rs`
-- `/Users/chris/Dev/OS/orch/orchestra-cli/src/commands/diff.rs`
-- `/Users/chris/Dev/OS/orch/orchestra-cli/src/main.rs`
+- `orchestra-cli/src/main.rs`
+- `orchestra-cli/src/commands/daemon.rs`
 
-### `orchestra status`
+### `orchestra daemon start`
 
-Supported forms:
+- Runs daemon in foreground.
+- Calls `orchestra_daemon::start_blocking(&home)`.
+- Starts Tokio runtime and all daemon tasks.
 
-```bash
-orchestra status
-orchestra status --project <project>
-orchestra status --json
-orchestra status --project <project> --json
-```
+### `orchestra daemon stop`
 
-Behavior:
-- Resolves home via `dirs::home_dir()`.
-- Loads all registered codebases through `registry::list_codebases_at(home)`.
-- Optional server-side filter by project name (`--project`).
-- Computes per-codebase signal using `orchestra_sync::staleness::check`.
-- Includes:
-  - codebase name
-  - signal + detail
-  - last-sync age (`synced_at` from hash store, or `never`)
-  - active task count (non-`done` tasks)
-- Human mode prints grouped table and colored `■` indicators legend.
-- JSON mode prints stable object shape:
-  - top-level: `summary`, `codebases`
-  - summary: `projects`, `codebases`, `stale`
-  - row: `project`, `codebase`, `status`, `detail`, `last_sync_age`, `last_sync_at`, `active_tasks`
+- Sends JSON socket request `{"cmd":"stop"}`.
+- Prints `daemon stop requested` on success.
+- Gracefully handles missing daemon socket and prints `daemon is not running`.
 
-Status values emitted:
-- `never_synced`
-- `current`
-- `stale`
-- `modified`
-- `orphan`
+### `orchestra daemon status`
 
-### `orchestra diff`
+- Sends JSON socket request `{"cmd":"status"}`.
+- Prints pretty JSON payload when daemon is reachable.
+- If daemon is not reachable, returns fallback JSON:
 
-Supported form:
-
-```bash
-orchestra diff <codebase>
-```
-
-Behavior:
-- Renders all managed agent outputs in memory (no writes).
-- Reads current file content from disk (missing files treated as empty).
-- Prints unified diffs with `a/<relative>` and `b/<relative>` headers.
-- Prints `No differences for '<codebase>'.` when clean.
-
----
-
-## Sync Library API Delta (Phase 03)
-
-Implemented in `/Users/chris/Dev/OS/orch/orchestra-sync/src/lib.rs`:
-
-- New module exports:
-  - `pub mod staleness;`
-  - `pub mod diff;`
-- New public re-exports:
-  - `pub use staleness::StalenessSignal;`
-  - `pub use diff::{diff_codebase, DiffCodebaseResult, FileDiff};`
-
-New core callable surfaces:
-
-```rust
-orchestra_sync::staleness::check(home, project, codebase)
-orchestra_sync::diff_codebase(codebase_name, home)
-```
-
----
-
-## Staleness Engine Details
-
-Implemented in `/Users/chris/Dev/OS/orch/orchestra-sync/src/staleness.rs`.
-
-### Signal model
-
-```rust
-enum StalenessSignal {
-  NeverSynced,
-  Current,
-  Stale { reason: String },
-  Modified { files: Vec<PathBuf> },
-  Orphan { files: Vec<PathBuf> },
+```json
+{
+  "running": false,
+  "socket": "<resolved socket path>"
 }
 ```
 
-### Evaluation order
+### `orchestra daemon install`
 
-1. `NeverSynced`
-- Trigger: hash store file missing OR hash store `files` map empty.
+- Installs launchd plist into `~/Library/LaunchAgents/dev.orchestra.daemon.plist`.
+- Bootstraps and kickstarts service via `launchctl`.
 
-2. `Stale`
-- Trigger A: one or more managed agent files missing on disk.
-- Trigger B: registry YAML mtime is newer than hash store `synced_at`.
-  - Registry timestamp source: `~/.orchestra/projects/<project>/<codebase>.yaml`
-  - Sync timestamp source: `~/.orchestra/hashes/<codebase>.json` `synced_at`
-  - Comparison safety: `duration_since(UNIX_EPOCH).unwrap_or_default()` for filesystem times.
+### `orchestra daemon uninstall`
 
-3. `Modified`
-- Trigger: managed file exists and stored hash differs from recomputed hash.
-- Hashing behavior:
-  - always normalize line endings (`\r\n` -> `\n`) before hashing.
+- Boots out launchd service and removes plist.
+- Removes daemon socket if present.
 
-4. `Orphan`
-- Trigger A: managed file exists but has no hash store entry.
-- Trigger B: hash store contains paths outside the managed set that still exist on disk.
+### `orchestra daemon logs`
 
-5. `Current`
-- Trigger: none of the above.
-
-### Managed file set covered
-
-Computed from `AgentKind::all()` output paths for:
-- Claude
-- Cursor
-- Windsurf
-- Copilot
-- Codex
-- Gemini (3 files)
-- Cline
-- Antigravity
+- Tails stdout/stderr daemon logs from `~/.orchestra/logs`.
+- Options:
+  - `--stderr-only`
+  - `--lines <n>` (default `100`)
 
 ---
 
-## Diff Engine Details
+## Sync Pipeline API (Shared by CLI + Daemon)
 
-Implemented in `/Users/chris/Dev/OS/orch/orchestra-sync/src/diff.rs`.
+Implemented in `orchestra-sync/src/pipeline.rs`.
 
-Algorithm:
-1. Resolve codebase from registry via shared finder.
-2. Build render context.
-3. Force `ctx.meta.last_synced = None` for diff stability (avoids timestamp-only false positives).
-4. Render all agent outputs in memory.
-5. Read existing file or default to empty.
-6. Normalize both sides to LF.
-7. Compare with `similar::TextDiff::from_lines` and emit unified hunks only for changed files.
+### New types
 
-Output model:
-- `DiffCodebaseResult { codebase_name, diffs: Vec<FileDiff> }`
-- `FileDiff { path, unified_diff }`
-
----
-
-## Writer/Sync Interaction Changes
-
-Implemented in `/Users/chris/Dev/OS/orch/orchestra-sync/src/writer.rs`.
-
-Changes:
-- Added shared helpers for cross-module reuse:
-  - `build_sync_context(...)`
-  - `find_codebase_at(...)`
-- Set `sync_started_at = Utc::now()` at beginning of real sync.
-- Persist `store.synced_at = sync_started_at` only after all writes and before atomic hash-store save.
-- Existing atomic write guarantees retained:
-  - content hash normalized with LF
-  - hash store entry inserted only after successful rename
-
----
-
-## Status Output Model
-
-Implemented in `/Users/chris/Dev/OS/orch/orchestra-cli/src/commands/status.rs`.
-
-Terminal mode:
-- Header:
-  - `Orchestra v<version> | <projects> projects | <codebases> codebases | <stale> stale`
-- Grouped by project.
-- Table columns:
-  - `codebase`
-  - `status` (label-only; unicode width-safe)
-  - `detail`
-  - `last sync`
-  - `active tasks`
-- Colored `■` indicator legend printed outside table.
-
-JSON mode:
-- Deterministic schema and status key strings.
-- Intended for scripts/CI parsing.
-
----
-
-## Test Coverage Added in Phase 03
-
-### 1) Sync integration: explicit Phase 03 staleness scenarios
-
-File:
-- `/Users/chris/Dev/OS/orch/orchestra-sync/tests/phase03_staleness.rs`
-
-Cases:
-- `stale_when_registry_is_newer_than_managed_files`
-  - Uses `filetime` to force old managed-file mtimes and newer registry mtime.
-- `modified_when_hash_mismatch_detected`
-  - Sync, mutate `CLAUDE.md`, assert `Modified` and file list includes `CLAUDE.md`.
-- `current_immediately_after_sync`
-  - Sync then assert `Current`.
-- `never_synced_when_registry_exists_but_no_hash_store`
-  - Registry-only setup then assert `NeverSynced`.
-
-### 2) CLI integration: status + diff end-to-end
-
-File:
-- `/Users/chris/Dev/OS/orch/orchestra-cli/tests/status_and_diff.rs`
-
-Cases:
-- `diff_accuracy_on_registry_change`
-  - Sync baseline.
-  - Mutate registry-backed data with unique sentinel.
-  - Run `orchestra diff`.
-  - Assert sentinel appears on `+` unified diff line.
-  - Assert no unrelated `last_synced` noise appears.
-- `status_json_includes_all_codebases_with_expected_staleness_and_schema`
-  - Build `current`, `modified`, `stale`, `never_synced` codebases.
-  - Run `orchestra status --json`.
-  - Assert all codebases present with expected statuses.
-  - Assert root/summary/row field sets are exact (schema stability guard).
-
-### 3) Module/unit tests added in core Phase 03 modules
-
-`/Users/chris/Dev/OS/orch/orchestra-sync/src/staleness.rs` includes unit cases for:
-- `Current`
-- `NeverSynced`
-- `Stale` (registry newer / missing managed files)
-- `Modified`
-- `Orphan`
-- age formatting helpers
-
-`/Users/chris/Dev/OS/orch/orchestra-sync/src/diff.rs` includes unit cases for:
-- clean sync => no diff
-- manual edit => unified diff emitted
-- hash-store `synced_at` change only => no diff noise
-
----
-
-## Dependency and Lockfile Delta (Phase 03)
-
-### Manifest-level additions
-
-- `orchestra-sync`:
-  - runtime: `similar = "2"`
-  - dev: `filetime = "0.2"`
-
-- `orchestra-cli`:
-  - runtime: `colored = "2"`, `tabled = "0.14"`, `serde`, `serde_json`
-  - dev: `assert_cmd = "2"`, `predicates = "3"`
-
-### Notable lockfile additions
-
-- Runtime-facing: `similar`, `colored`, `tabled`, `tabled_derive`, `papergrid`, `unicode-width`
-- Test-facing: `assert_cmd`, `filetime`, `wait-timeout`, `predicates`
-- Platform/transitive support: `redox_syscall` and related graph updates
-
----
-
-## User Quick Reference (Now Available)
-
-```bash
-# Table status across all codebases
-orchestra status
-
-# Filter status to one project
-orchestra status --project copnow
-
-# Parseable machine output
-orchestra status --json
-
-# Show pre-sync unified diff for one codebase
-orchestra diff copnow_api
-
-# Apply updates after reviewing status/diff
-orchestra sync --all
+```rust
+enum SyncScope {
+  All,
+  Codebase(String),
+}
 ```
 
-Primary state files involved:
+### New function
 
-```text
-~/.orchestra/projects/<project>/<codebase>.yaml
-~/.orchestra/hashes/<codebase>.json
+```rust
+pub fn run(home: &Path, scope: SyncScope, dry_run: bool)
+  -> Result<Vec<SyncCodebaseResult>, SyncError>
+```
+
+### Behavior
+
+- `SyncScope::All` delegates to `sync_all(...)`.
+- `SyncScope::Codebase(name)` delegates to `sync_codebase(name, ...)` and wraps into single-item vec.
+- `orchestra sync` command now calls this shared pipeline instead of calling writer APIs directly.
+
+---
+
+## Daemon Runtime Architecture
+
+Implemented in `orchestra-daemon/src/runtime.rs`.
+
+### Runtime bootstrap
+
+- `start_blocking(home)`:
+  - Initializes tracing subscriber.
+  - Builds Tokio multi-thread runtime (`enable_all`).
+  - Blocks on `run(home)`.
+
+- `run(home)`:
+  - Ensures runtime directories exist.
+  - Loads `RegistryCache` from all registry YAML files.
+  - Creates channels:
+    - sync queue: `mpsc::channel<SyncJob>(64)`
+    - shutdown fanout: `broadcast::channel<()> (16)`
+  - Spawns tasks:
+    - `watcher_task`
+    - `sync_processor_task`
+    - `socket_server_task`
+    - `signal_handle` (`tokio::signal::ctrl_c`)
+  - Joins task handles and converts join failures to protocol errors.
+
+### Shared state model
+
+- `RegistryCache`:
+
+```rust
+type RegistryCache = HashMap<CodebaseName, Codebase>
+```
+
+- Wrapped in `Arc<RwLock<RegistryCache>>` for cross-task status/read and sync refresh.
+
+### Deadlock-avoidance and lock duration
+
+- Status payload path clones names under short read lock, then releases lock before JSON assembly.
+- Cache refresh does expensive disk reload off-lock (`spawn_blocking`) and holds write lock only for assignment.
+- No nested lock acquisitions under active write lock critical section.
+
+---
+
+## Watcher Task (notify + debounce + Phase 04 scope)
+
+Implemented in `watcher_task(...)` and helpers.
+
+### Watch registration model
+
+- Root watch scope:
+  - `~/.orchestra/projects`
+- Directory registration:
+  - recursively enumerates directories in projects tree
+  - canonicalizes each directory path before watcher registration
+  - uses `watcher.watch(&canonical_dir, RecursiveMode::NonRecursive)`
+- Parent-directory registration for events:
+  - for each event path, resolves `path.parent()` (or path itself if dir)
+  - ensures directory-based FSEvents requirements are respected
+- Watcher lifetime:
+  - watcher stored as task-local variable (`_watcher`) and kept alive for entire task lifetime.
+
+### Event filtering
+
+- Processes only `Create` and `Modify` event kinds.
+- Ignores non-registry paths.
+- Registry path predicate:
+  - path starts with projects root
+  - extension is `.yaml` (case-insensitive)
+
+### Debounce behavior
+
+- Debounce map:
+
+```rust
+HashMap<PathBuf, tokio::time::Instant>
+```
+
+- Default threshold: `DEBOUNCE_WINDOW = 500ms`.
+- For each path:
+  - if last-seen < threshold, event is dropped
+  - otherwise event is accepted and timestamp refreshed
+- Debounce map cleanup:
+  - entries older than 30s are pruned opportunistically.
+
+### Watch-to-sync mapping
+
+- If YAML filename is `project.yaml` -> sync target `All`.
+- Otherwise target is `<file_stem>` codebase name.
+- Enqueues sync job with source = `"watcher"`.
+- After successful sync:
+  - runs staleness scan for all codebases via Phase 03 checker.
+
+---
+
+## Sync Processor Task
+
+Implemented in `sync_processor_task(...)`.
+
+### Job contract
+
+```rust
+struct SyncJob {
+  target: SyncTarget,        // All | Codebase(String)
+  source: &'static str,      // "watcher" | "socket"
+  respond_to: oneshot::Sender<Result<SyncSummary, String>>,
+}
+```
+
+### Processing flow
+
+1. Receive `SyncJob` from queue.
+2. Execute sync pipeline on blocking thread:
+   - `pipeline::run(&home, target.scope(), false)`
+3. Refresh registry cache after successful sync.
+4. Build `SyncSummary` with:
+   - `target`
+   - `source`
+   - `codebases`
+   - `written`
+   - `unchanged`
+   - `duration_ms`
+5. Return summary/error via oneshot channel.
+
+### SyncSummary shape
+
+```rust
+pub struct SyncSummary {
+  pub target: String,
+  pub source: String,
+  pub codebases: Vec<String>,
+  pub written: usize,
+  pub unchanged: usize,
+  pub duration_ms: u128,
+}
 ```
 
 ---
 
-## Phase 03 Completion Notes
+## Socket Server Task and Protocol Handling
 
-- Registry freshness now keys off hash-store `synced_at` instead of rendered file mtimes.
-- Hash comparison remains line-ending normalized and deterministic.
-- Diff is stable against `last_synced` metadata-only changes.
-- Status distinguishes first-run/unsynced (`NeverSynced`) from true staleness (`Stale`).
+Implemented in `socket_server_task(...)`, `handle_socket_client(...)`, and `protocol.rs`.
+
+### Socket lifecycle
+
+- Socket path: `~/.orchestra/daemon.sock`.
+- Startup stale-socket handling:
+  - if socket file exists, attempts to connect:
+    - connect success: treat as active daemon and return error (`socket already in use`)
+    - connect failure: remove stale socket file and continue
+- Bind listener with `tokio::net::UnixListener`.
+- Set socket mode `0600` on Unix.
+- On server shutdown, remove socket file.
+
+### Socket commands (newline-delimited JSON)
+
+Request model:
+
+```json
+{"cmd":"status"}
+{"cmd":"sync","codebase":"copnow_api"}
+{"cmd":"stop"}
+```
+
+Response model:
+
+```json
+{"ok":true,"data":...}
+{"ok":false,"error":"..."}
+```
+
+### Command behavior
+
+- `status`:
+  - returns payload:
+    - `running`
+    - `label`
+    - `started_at_unix`
+    - `codebase_count`
+    - `codebases`
+    - `socket`
+    - `projects_root`
+- `sync`:
+  - with `codebase` -> single-codebase sync
+  - without `codebase` -> all codebases sync
+  - returns `SyncSummary`
+- `stop`:
+  - broadcasts shutdown signal
+  - returns `{"stopping": true}`
+- unknown command:
+  - returns protocol error response
+
+### Protocol client helpers
+
+Implemented in `protocol.rs`:
+
+- `send_request(home, &DaemonRequest)`
+- `request_status(home)`
+- `request_sync(home, Option<String>)`
+- `request_stop(home)`
+
+Status race mitigation:
+- `request_status` retries daemon connection up to 5 times with 100ms backoff before returning not-running.
+
+---
+
+## Launchd Integration Details
+
+Implemented in `orchestra-daemon/src/launchd.rs`.
+
+### Plist generation
+
+`generate_plist(binary_path, log_dir)` emits plist with:
+
+- `Label = dev.orchestra.daemon`
+- `ProgramArguments = [<binary>, "daemon", "start"]`
+- `RunAtLoad = true`
+- `KeepAlive = true`
+- `StandardOutPath = <log_dir>/daemon.log`
+- `StandardErrorPath = <log_dir>/daemon-err.log`
+
+### Install flow
+
+`install(home)`:
+
+1. Ensures macOS target (`target_os = "macos"`).
+2. Creates:
+   - `~/Library/LaunchAgents`
+   - `~/.orchestra/logs`
+   - `~/.orchestra/run`
+3. Writes plist to:
+   - `~/Library/LaunchAgents/dev.orchestra.daemon.plist`
+4. Resolves launchctl domain with `id -u` -> `gui/<uid>`.
+5. Runs:
+   - `launchctl bootout gui/<uid>/dev.orchestra.daemon` (best-effort)
+   - `launchctl bootstrap gui/<uid> <plist>`
+   - `launchctl kickstart -k gui/<uid>/dev.orchestra.daemon`
+
+### Uninstall flow
+
+`uninstall(home)`:
+
+1. Ensures macOS target.
+2. If plist exists:
+   - `launchctl bootout gui/<uid>/dev.orchestra.daemon` (best-effort)
+   - remove plist file
+3. Removes socket file if present.
+
+### Non-macOS behavior
+
+- Returns `DaemonError::Launchd("launchd management is only supported on macOS")`.
+
+---
+
+## Path and State Layout (Phase 04)
+
+Implemented in `orchestra-daemon/src/paths.rs`.
+
+### Constants
+
+- `DAEMON_LABEL = "dev.orchestra.daemon"`
+- `DEBOUNCE_WINDOW = 500ms`
+- `DAEMON_SOCKET = "daemon.sock"`
+- `DAEMON_STDOUT_LOG = "daemon.log"`
+- `DAEMON_STDERR_LOG = "daemon-err.log"`
+
+### Resolved locations
+
+- `orchestra_root(home)` -> `~/.orchestra`
+- `projects_root(home)` -> `~/.orchestra/projects`
+- `run_dir(home)` -> `~/.orchestra/run`
+- `socket_path(home)` -> `~/.orchestra/daemon.sock`
+- `logs_dir(home)` -> `~/.orchestra/logs`
+- `stdout_log_path(home)` -> `~/.orchestra/logs/daemon.log`
+- `stderr_log_path(home)` -> `~/.orchestra/logs/daemon-err.log`
+- `launchd_plist_path(home)` -> `~/Library/LaunchAgents/dev.orchestra.daemon.plist`
+
+---
+
+## Error Model Added for Phase 04
+
+Implemented in `orchestra-daemon/src/error.rs`.
+
+`DaemonError` variants:
+
+- `Io { path, source }`
+- `Notify(notify::Error)`
+- `Registry(orchestra_core::RegistryError)`
+- `Sync(orchestra_sync::SyncError)`
+- `Json(serde_json::Error)`
+- `ChannelClosed(&'static str)`
+- `Protocol(String)`
+- `DaemonNotRunning { socket: PathBuf }`
+- `Launchd(String)`
+
+Helper:
+- `io_err(path, source)` to annotate I/O errors with path context.
+
+---
+
+## Test Coverage Added in Phase 04
+
+### A) Sync pipeline unit tests
+
+File:
+- `orchestra-sync/src/pipeline.rs`
+
+Tests:
+- `run_all_empty_registry_returns_empty_vec`
+- `run_single_codebase_returns_single_result`
+
+### B) Launchd plist unit test
+
+File:
+- `orchestra-daemon/src/launchd.rs`
+
+Test:
+- `plist_contains_required_launchd_fields`
+
+Asserts via `plist` crate parsing:
+- Label
+- RunAtLoad
+- KeepAlive
+- ProgramArguments exact sequence
+
+### C) Runtime unit tests
+
+File:
+- `orchestra-daemon/src/runtime.rs`
+
+Tests:
+- `debounce_coalesces_rapid_events`
+  - uses paused Tokio time + deterministic `advance`
+  - validates rapid events collapse to one trigger under threshold
+- `registry_cache_reload_updates_changed_codebase`
+  - builds registry cache from temp registry entries
+  - mutates YAML and reloads one codebase
+  - verifies cache reflects mutation
+- `socket_protocol_status_and_stop_over_in_memory_channels`
+  - tests `status` and `stop` request handling over channel-backed fake transport
+  - asserts shutdown broadcast fires on stop
+
+### D) Daemon integration test (real subprocess)
+
+File:
+- `orchestra-cli/tests/phase04_daemon_autosync.rs`
+
+Scenario:
+1. Spawn real daemon subprocess (`orchestra daemon start`) with temp HOME.
+2. Poll `orchestra daemon status` until `running: true`.
+3. Initialize registry codebase (`registry::init_at`).
+4. Baseline sync (`orchestra sync <codebase>`).
+5. Mutate registry YAML content.
+6. Wait up to 2s for daemon autosync.
+7. Assert generated `CLAUDE.md` now contains sentinel.
+8. Stop daemon gracefully; fallback kill if needed.
+
+---
+
+## Phase 04 Behavioral Guarantees Implemented
+
+- Daemon runs all Phase 04 async responsibilities inside one runtime.
+- Registry YAML edits trigger sync without watching codebase directories.
+- Debounce suppresses rapid editor multi-write bursts.
+- Socket startup cleans stale socket files and prevents accidental double-bind.
+- Ctrl-c triggers graceful daemon shutdown broadcast.
+- CLI status handles daemon startup race via retry.
+- Cache/state locking minimizes deadlock risk between status reads and sync writes.
+- launchd lifecycle is fully automated for macOS user agents.
+- Sync processor reuses existing Phase 03 sync pipeline logic (no duplicated sync implementation).
+
+---
+
+## Known Operational Constraints (Current Phase 04 State)
+
+- launchd install/uninstall are macOS-only by design.
+- Daemon socket protocol is Unix-domain socket based.
+- Watch scope is intentionally limited to registry YAML tree in Phase 04.
+- Full workspace compile/test requires network access to fetch new crates when lock/deps are not already cached.
