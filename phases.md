@@ -146,9 +146,52 @@ orchestra sync --all
 
 ---
 
-## Phase 03 — Staleness / Observability 🔜
+## Phase 03 — Staleness / Observability ✅
 
 *Status signals, diff output, stale-file detection.*
+
+### What was implemented
+
+| Area | Detail |
+|---|---|
+| Staleness detection | `NeverSynced`, `Current`, `Stale`, `Modified`, `Orphan` signals with hash-store + registry freshness checks |
+| Status command | `orchestra status` with project filtering (`--project`) and machine output (`--json`) |
+| Diff command | `orchestra diff <codebase>` renders in-memory and prints unified diffs without writing files |
+| Library APIs | `orchestra_sync::staleness::check`, `orchestra_sync::StalenessSignal`, `orchestra_sync::diff_codebase` |
+| Data sources | Reuses `~/.orchestra/projects/<project>/<codebase>.yaml` + `~/.orchestra/hashes/<codebase>.json` |
+
+### Using it
+
+**See staleness for all codebases:**
+```bash
+orchestra status
+```
+
+**Filter by project:**
+```bash
+orchestra status --project copnow
+```
+
+**Get JSON for scripts/CI:**
+```bash
+orchestra status --json
+```
+
+**Preview changes before syncing:**
+```bash
+orchestra diff copnow_api
+```
+
+**Refresh stale/modified codebases:**
+```bash
+orchestra sync --all
+```
+
+**Where freshness state lives:**
+```text
+~/.orchestra/projects/<project>/<codebase>.yaml
+~/.orchestra/hashes/<codebase>.json
+```
 
 ---
 

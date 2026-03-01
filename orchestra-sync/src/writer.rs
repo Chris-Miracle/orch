@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 
 use orchestra_core::{
     registry,
-    types::{Codebase, CodebaseName},
+    types::{Codebase, CodebaseName, ProjectName},
 };
 use orchestra_renderer::{AgentKind, Renderer, TemplateContext};
 
@@ -82,13 +82,17 @@ fn atomic_write_with_tmp(
     if let Some(stored) = hash_store.get(&key) {
         if stored == &digest {
             tracing::debug!("unchanged: {}", path.display());
-            return Ok(WriteResult::Unchanged { path: path.to_path_buf() });
+            return Ok(WriteResult::Unchanged {
+                path: path.to_path_buf(),
+            });
         }
     }
 
     if dry_run {
         tracing::info!("[dry-run] would write: {}", path.display());
-        return Ok(WriteResult::WouldWrite { path: path.to_path_buf() });
+        return Ok(WriteResult::WouldWrite {
+            path: path.to_path_buf(),
+        });
     }
 
     // Step 5: ensure parent directory exists, write to .tmp.
@@ -111,14 +115,16 @@ fn atomic_write_with_tmp(
     hash_store.insert(key, digest);
 
     tracing::info!("wrote: {}", path.display());
-    Ok(WriteResult::Written { path: path.to_path_buf() })
+    Ok(WriteResult::Written {
+        path: path.to_path_buf(),
+    })
 }
 
 // ---------------------------------------------------------------------------
 // sync_codebase
 // ---------------------------------------------------------------------------
 
-fn build_sync_context(
+pub(crate) fn build_sync_context(
     codebase: &Codebase,
     dry_run: bool,
     store_existed: bool,
@@ -133,6 +139,21 @@ fn build_sync_context(
         None
     };
     ctx
+}
+
+pub(crate) fn find_codebase_at(
+    home: &Path,
+    codebase_name: &str,
+) -> Result<(ProjectName, Codebase), SyncError> {
+    let name = CodebaseName::from(codebase_name);
+    let all = registry::list_codebases_at(home)?;
+    all.into_iter()
+        .find(|(_, cb)| cb.name == name)
+        .ok_or_else(|| {
+            SyncError::Registry(orchestra_core::error::RegistryError::RegistryNotFound {
+                path: home.join(".orchestra").join("projects").join(codebase_name),
+            })
+        })
 }
 
 /// Outcome of syncing a single codebase.
@@ -151,19 +172,10 @@ pub fn sync_codebase(
     home: &Path,
     dry_run: bool,
 ) -> Result<SyncCodebaseResult, SyncError> {
+    let sync_started_at = Utc::now();
+
     // Find the codebase in the registry by scanning all projects.
-    let name = CodebaseName::from(codebase_name);
-    let all = registry::list_codebases_at(home)?;
-    let codebase = all
-        .into_iter()
-        .find(|(_, cb)| cb.name == name)
-        .map(|(_, cb)| cb)
-        .ok_or_else(|| SyncError::Registry(orchestra_core::error::RegistryError::RegistryNotFound {
-            path: home
-                .join(".orchestra")
-                .join("projects")
-                .join(codebase_name),
-        }))?;
+    let (_, codebase) = find_codebase_at(home, codebase_name)?;
 
     let renderer = Renderer::new()?;
     let store_path = hash_store::store_path_at(home, codebase_name);
@@ -182,7 +194,7 @@ pub fn sync_codebase(
 
     // Save the updated hash store (skip in dry-run — no filesystem changes).
     if !dry_run {
-        store.synced_at = Utc::now();
+        store.synced_at = sync_started_at;
         hash_store::save_at(home, codebase_name, &store)?;
     }
 
@@ -208,7 +220,6 @@ pub fn sync_all(home: &Path, dry_run: bool) -> Result<Vec<SyncCodebaseResult>, S
     Ok(results)
 }
 
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -217,14 +228,14 @@ pub fn sync_all(home: &Path, dry_run: bool) -> Result<Vec<SyncCodebaseResult>, S
 mod tests {
     use super::*;
     use chrono::Duration as ChronoDuration;
-    use std::collections::HashMap;
-    use std::fs;
-    use std::thread::sleep;
-    use std::time::Duration;
     use orchestra_core::{
         registry,
         types::{Codebase, CodebaseName, Project, ProjectName, ProjectType},
     };
+    use std::collections::HashMap;
+    use std::fs;
+    use std::thread::sleep;
+    use std::time::Duration;
     use tempfile::TempDir;
 
     fn write_content(path: &Path, content: &str) -> WriteResult {
@@ -301,7 +312,11 @@ mod tests {
     #[test]
     fn creates_parent_directories() {
         let tmp = TempDir::new().unwrap();
-        let path = tmp.path().join(".cursor").join("rules").join("orchestra.mdc");
+        let path = tmp
+            .path()
+            .join(".cursor")
+            .join("rules")
+            .join("orchestra.mdc");
         write_content(&path, "content");
         assert!(path.exists());
     }
@@ -356,16 +371,22 @@ mod tests {
         .expect("init");
 
         sync_codebase("copnow_api", home.path(), false).expect("first sync");
-        let first = hash_store::load_at(home.path(), "copnow_api").unwrap().synced_at;
+        let first = hash_store::load_at(home.path(), "copnow_api")
+            .unwrap()
+            .synced_at;
 
         sleep(Duration::from_millis(1100));
         sync_codebase("copnow_api", home.path(), true).expect("dry-run sync");
-        let after_dry_run = hash_store::load_at(home.path(), "copnow_api").unwrap().synced_at;
+        let after_dry_run = hash_store::load_at(home.path(), "copnow_api")
+            .unwrap()
+            .synced_at;
         assert_eq!(after_dry_run, first, "dry-run must not advance synced_at");
 
         sleep(Duration::from_millis(1100));
         sync_codebase("copnow_api", home.path(), false).expect("second real sync");
-        let second = hash_store::load_at(home.path(), "copnow_api").unwrap().synced_at;
+        let second = hash_store::load_at(home.path(), "copnow_api")
+            .unwrap()
+            .synced_at;
         assert!(second > first, "real sync should advance synced_at");
     }
 
