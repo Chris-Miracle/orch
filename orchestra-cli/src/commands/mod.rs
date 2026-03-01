@@ -1,3 +1,4 @@
+pub mod daemon;
 pub mod diff;
 pub mod init;
 pub mod project;
