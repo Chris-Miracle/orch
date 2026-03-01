@@ -3,7 +3,10 @@
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 
-use orchestra_core::{registry, types::{CodebaseName, ProjectName}};
+use orchestra_core::{
+    registry,
+    types::{CodebaseName, ProjectName},
+};
 
 use super::super::ProjectTypeArg;
 
@@ -70,8 +73,7 @@ fn add(args: AddArgs) -> Result<()> {
     let project = match args.project {
         Some(p) => ProjectName::from(p),
         None => {
-            let projects = registry::list_project_names()
-                .context("failed to read project list")?;
+            let projects = registry::list_project_names().context("failed to read project list")?;
             match projects.len() {
                 0 => {
                     return Err(anyhow::anyhow!(
@@ -91,13 +93,17 @@ fn add(args: AddArgs) -> Result<()> {
     };
 
     let project_type = args.project_type.unwrap_or_default().into();
-    let codebase = registry::add_codebase(&project, CodebaseName::from(args.name.clone()), project_type)
-        .with_context(|| {
-            format!(
-                "failed to add '{}' to project '{}' — run `orchestra init` first",
-                args.name, project
-            )
-        })?;
+    let codebase = registry::add_codebase(
+        &project,
+        CodebaseName::from(args.name.clone()),
+        project_type,
+    )
+    .with_context(|| {
+        format!(
+            "failed to add '{}' to project '{}' — run `orchestra init` first",
+            args.name, project
+        )
+    })?;
 
     println!("✓ Added '{}' to project '{}'", codebase.name, project);
     Ok(())

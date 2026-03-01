@@ -72,14 +72,13 @@ pub fn load_at(home: &Path, codebase_name: &str) -> Result<HashStoreFile, SyncEr
 /// Save the hash store for `codebase_name` atomically.
 ///
 /// Writes to `<path>.tmp` then renames to `<path>`.
-pub fn save_at(
-    home: &Path,
-    codebase_name: &str,
-    store: &HashStoreFile,
-) -> Result<(), SyncError> {
+pub fn save_at(home: &Path, codebase_name: &str, store: &HashStoreFile) -> Result<(), SyncError> {
     let path = store_path_at(home, codebase_name);
     let Some(dir) = path.parent() else {
-        return Err(io_err(path, std::io::Error::other("invalid hash store path")));
+        return Err(io_err(
+            path,
+            std::io::Error::other("invalid hash store path"),
+        ));
     };
 
     // Ensure the hashes directory exists.
@@ -109,7 +108,10 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut files = HashMap::new();
         files.insert("CLAUDE.md".to_string(), "deadbeef".to_string());
-        files.insert(".agent/rules/orchestra.md".to_string(), "cafebabe".to_string());
+        files.insert(
+            ".agent/rules/orchestra.md".to_string(),
+            "cafebabe".to_string(),
+        );
         let store = HashStoreFile {
             synced_at: Utc::now(),
             files,
@@ -129,7 +131,10 @@ mod tests {
         };
         save_at(tmp.path(), "clean_test", &store).unwrap();
         let tmp_path = store_path_at(tmp.path(), "clean_test").with_extension("json.tmp");
-        assert!(!tmp_path.exists(), "tmp file should be removed after atomic rename");
+        assert!(
+            !tmp_path.exists(),
+            "tmp file should be removed after atomic rename"
+        );
     }
 
     #[test]

@@ -13,6 +13,7 @@ clap = { version = "4", features = ["derive"] }
 anyhow = "1"
 orchestra-core = { path = "../orchestra-core" }
 orchestra-sync = { path = "../orchestra-sync" }
+orchestra-daemon = { path = "../orchestra-daemon" }
 dirs = "5"
 colored = "2"
 tabled = "0.14"
