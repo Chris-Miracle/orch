@@ -10,6 +10,7 @@ pub mod error;
 pub mod hash_store;
 pub mod pipeline;
 pub mod staleness;
+pub mod writeback;
 pub mod writer;
 
 pub use diff::{diff_codebase, DiffCodebaseResult, FileDiff};
@@ -17,3 +18,5 @@ pub use error::SyncError;
 pub use pipeline::SyncScope;
 pub use staleness::StalenessSignal;
 pub use writer::{sync_all, sync_codebase, SyncCodebaseResult, WriteResult};
+pub use writeback::{managed_agent_paths, process_writeback, WritebackOutcome};
+

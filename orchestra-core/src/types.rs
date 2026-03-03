@@ -120,6 +120,20 @@ pub enum TaskStatus {
 // Domain structs
 // ---------------------------------------------------------------------------
 
+/// A skill discovered by an agent during work on a codebase.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Skill {
+    pub id: String,
+    pub description: String,
+}
+
+/// A single agent task within a codebase.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Subtask {
+    pub title: String,
+    pub done: bool,
+}
+
 /// A single agent task within a codebase.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Task {
@@ -128,6 +142,11 @@ pub struct Task {
     pub status: TaskStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub subtasks: Vec<Subtask>,
+    /// Timestamped notes written back by agents via update blocks.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -161,6 +180,18 @@ pub struct Codebase {
     pub path: PathBuf,
     #[serde(default)]
     pub projects: Vec<Project>,
+    /// Conventions accumulated via agent writeback.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub conventions: Vec<String>,
+    /// Skills discovered via agent writeback.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub skills: Vec<Skill>,
+    /// Codebase-level notes written back by agents.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<String>,
+    /// Additional tracked files mentioned via writeback protocol.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tracked_files: Vec<PathBuf>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -216,5 +247,11 @@ mod tests {
     fn project_type_display() {
         assert_eq!(ProjectType::Mobile.to_string(), "mobile");
         assert_eq!(ProjectType::Ml.to_string(), "ml");
+    }
+
+    #[test]
+    fn task_status_done_serializes_lowercase() {
+        let yaml = serde_yaml::to_string(&TaskStatus::Done).expect("serialize task status");
+        assert_eq!(yaml.trim(), "done");
     }
 }
