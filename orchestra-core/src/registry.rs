@@ -244,6 +244,10 @@ pub fn init_at(
             tasks: vec![],
             agents: vec![],
         }],
+        conventions: vec![],
+        skills: vec![],
+        notes: vec![],
+        tracked_files: vec![],
         created_at: now,
         updated_at: now,
     };
@@ -297,6 +301,10 @@ pub fn add_codebase_at(
             tasks: vec![],
             agents: vec![],
         }],
+        conventions: vec![],
+        skills: vec![],
+        notes: vec![],
+        tracked_files: vec![],
         created_at: now,
         updated_at: now,
     };
@@ -397,6 +405,10 @@ mod tests {
                 tasks: vec![],
                 agents: vec![],
             }],
+            conventions: vec![],
+            skills: vec![],
+            notes: vec![],
+            tracked_files: vec![],
             created_at: now,
             updated_at: now,
         };
@@ -414,6 +426,10 @@ mod tests {
             name: cb_name(),
             path: PathBuf::from("/code/x"),
             projects: vec![],
+            conventions: vec![],
+            skills: vec![],
+            notes: vec![],
+            tracked_files: vec![],
             created_at: now,
             updated_at: now,
         };

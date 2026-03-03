@@ -11,6 +11,6 @@ pub mod types;
 
 pub use error::RegistryError;
 pub use types::{
-    AgentConfig, Codebase, CodebaseName, Project, ProjectName, ProjectType, Registry, Task,
-    TaskId, TaskStatus,
+    AgentConfig, Codebase, CodebaseName, Project, ProjectName, ProjectType, Registry, Skill,
+    Subtask, Task, TaskId, TaskStatus,
 };
