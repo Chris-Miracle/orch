@@ -38,6 +38,9 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build
+        env:
+          ORCHESTRA_RELEASE_CHANNEL: beta
+          ORCHESTRA_RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: cargo build --release --bin orchestra --target ${{ matrix.target }}
 
       - name: Package
