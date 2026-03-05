@@ -14,9 +14,11 @@ Orchestra is an open-source macOS CLI that keeps every AI coding agent (Claude, 
 
 - [Requirements](#requirements)
 - [Installation](#installation)
-  - [Script (recommended)](#script-recommended)
+  - [Stable release (recommended)](#stable-release-recommended)
+  - [Beta pre-release](#beta-pre-release)
   - [Manual download](#manual-download)
   - [Build from source](#build-from-source)
+- [Release channels](#release-channels)
 - [Quick start](#quick-start)
 - [Commands](#commands)
   - [orchestra init](#orchestra-init)
@@ -45,37 +47,46 @@ Orchestra is a single static binary with no runtime dependencies.
 
 ## Installation
 
-### Script (recommended)
+Orchestra has two release channels. Choose the one that fits your use case:
+
+| Channel | Who it's for | Stability |
+|---|---|---|
+| **Stable** | End users | Production-ready, tested |
+| **Beta** | Contributors & testers | Latest features, may have rough edges |
+
+---
+
+### Stable release (recommended)
+
+For everyday users who want a reliable, production-tested binary:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Chris-Miracle/orch/main/install.sh | sh
 ```
 
-This downloads the correct pre-built binary for your Mac, installs it to `~/.local/bin`, and strips the macOS quarantine flag.
+This downloads the correct pre-built binary for your Mac (`arm64` or `x86_64`), installs it to `~/.local/bin`, strips the macOS quarantine flag, and sets your release channel to **stable** so `orchestra update` tracks stable releases going forward.
 
-After installation, make sure `~/.local/bin` is on your `PATH`. Add this to your `~/.zshrc` (or `~/.bash_profile`) if it isn't already:
+---
 
-```sh
-export PATH="$HOME/.local/bin:$PATH"
-```
+### Beta pre-release
 
-Reload your shell or run:
+For contributors and testers who want the latest changes before they reach stable:
 
 ```sh
-source ~/.zshrc
+curl -fsSL https://raw.githubusercontent.com/Chris-Miracle/orch/main/install.sh | sh -s -- --beta
 ```
 
-Verify the install:
+This downloads the latest beta pre-release and sets your release channel to **beta**. `orchestra update` will track beta releases automatically.
 
-```sh
-orchestra --version
-```
+> **Note:** Beta builds are released on every merge to the `beta` branch. They are tagged `vX.Y.Z-beta.<build>` and marked as pre-releases on GitHub.
 
 ---
 
 ### Manual download
 
-1. Go to the [latest release](https://github.com/Chris-Miracle/orch/releases/latest).
+1. Go to the [releases page](https://github.com/Chris-Miracle/orch/releases).
+   - **Stable:** Look for the latest release without a `-beta` label.
+   - **Beta:** Look for the latest pre-release tagged `vX.Y.Z-beta.*`.
 2. Download the archive for your Mac:
    - Apple Silicon (M1/M2/M3/M4): `orchestra-macos-arm64.tar.gz`
    - Intel: `orchestra-macos-x86_64.tar.gz`
@@ -86,6 +97,16 @@ tar -xzf orchestra-macos-*.tar.gz
 mkdir -p ~/.local/bin
 mv orchestra ~/.local/bin/orchestra
 xattr -d com.apple.quarantine ~/.local/bin/orchestra 2>/dev/null || true
+```
+
+4. *(Optional)* Write your channel preference so `orchestra update` tracks the right releases:
+
+```sh
+# For stable:
+mkdir -p ~/.orchestra && echo "stable" > ~/.orchestra/channel
+
+# For beta:
+mkdir -p ~/.orchestra && echo "beta" > ~/.orchestra/channel
 ```
 
 ---
@@ -101,10 +122,50 @@ cargo build --release -p orchestra-cli
 cp target/release/orchestra ~/.local/bin/orchestra
 ```
 
-To rebuild and reinstall at any time after pulling updates:
+To rebuild and reinstall at any time:
 
 ```sh
 cargo build --release -p orchestra-cli && cp target/release/orchestra ~/.local/bin/orchestra
+```
+
+---
+
+### PATH setup
+
+After installing, make sure `~/.local/bin` is on your `PATH`. Add this to your `~/.zshrc` (or `~/.bash_profile`):
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Then reload:
+
+```sh
+source ~/.zshrc
+```
+
+Verify:
+
+```sh
+orchestra --version
+```
+
+---
+
+## Release channels
+
+Orchestra tracks which release channel you're on and uses it to drive `orchestra update`.
+
+| Channel | Release trigger | GitHub label |
+|---|---|---|
+| `stable` | Merge `beta → main` | Latest release |
+| `beta` | Merge any branch `→ beta` | Pre-release (`vX.Y.Z-beta.<build>`) |
+
+Your channel is stored in `~/.orchestra/channel` after installation. You can switch channels at any time with:
+
+```sh
+orchestra update --stable   # switch to stable channel
+orchestra update --beta     # switch to beta channel
 ```
 
 ---
@@ -336,27 +397,71 @@ orchestra daemon start
 
 ### `orchestra update`
 
-Check for a newer version of Orchestra and print upgrade instructions.
+**Auto-upgrade Orchestra to the latest release for your channel.**
+
+`orchestra update` downloads and installs the new binary automatically — no manual download required.
+
+```
+orchestra update [--stable] [--beta]
+```
+
+| Flag | Description |
+|---|---|
+| *(none)* | Check and upgrade based on your current channel |
+| `--stable` | Switch to the stable channel and upgrade |
+| `--beta` | Switch to the beta channel and upgrade |
+
+#### How it works
+
+- The installed binary knows its **release channel** (`stable` or `beta`) from when it was built by CI. This is stored in `~/.orchestra/channel` after install.
+- On `stable`, it checks [`/releases/latest`](https://github.com/Chris-Miracle/orch/releases/latest) — always a non-pre-release.
+- On `beta`, it checks the most recent pre-release — the latest `vX.Y.Z-beta.*` build.
+- If a newer version is found, it downloads the tarball for your architecture, extracts it, and replaces the running binary in-place.
+- If already up to date, it exits cleanly.
+
+#### Checking and upgrading
 
 ```sh
+# Check and upgrade (uses your current channel)
 orchestra update
 ```
 
-Example output:
+Example output when an update is available:
 ```
-  → A new version of Orchestra is available: v0.1.4 → v0.1.7
+  channel     stable
+  installed   v0.1.7
 
-  To upgrade:
+  → Update available: v0.1.7 → v0.1.8
 
-    curl -fsSL https://raw.githubusercontent.com/Chris-Miracle/orch/main/install.sh | sh
+  Downloading orchestra-macos-arm64.tar.gz...
+
+  ✓ Updated: v0.1.7 → v0.1.8
 ```
 
-If you are already on the latest version:
+Example output when already up to date:
 ```
-  ✓ You're on the latest version: v0.1.7
+  channel     stable
+  installed   v0.1.8
+
+  ✓ Already on the latest stable release: v0.1.8
 ```
+
+#### Switching channels
+
+Switch from stable to beta (and upgrade immediately):
+```sh
+orchestra update --beta
+```
+
+Switch from beta back to stable:
+```sh
+orchestra update --stable
+```
+
+Your channel preference is saved to `~/.orchestra/channel` and respected on every future `orchestra update` call.
 
 ---
+
 
 ## Registry layout
 
