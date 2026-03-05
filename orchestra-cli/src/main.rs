@@ -41,6 +41,7 @@ All available commands:
     daemon install
     daemon uninstall
     daemon logs
+    update
 ";
 
 // ---------------------------------------------------------------------------
@@ -85,6 +86,9 @@ enum Commands {
         #[command(subcommand)]
         command: DaemonCommand,
     },
+
+    /// Check for a newer version of Orchestra and print upgrade instructions.
+    Update,
 }
 
 // ---------------------------------------------------------------------------
@@ -136,5 +140,6 @@ fn main() -> Result<()> {
         Commands::Status(args) => args.run(),
         Commands::Diff(args) => args.run(),
         Commands::Daemon { command } => commands::daemon::run(command),
+        Commands::Update => commands::update::run(),
     }
 }
