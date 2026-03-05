@@ -28,6 +28,10 @@ pub fn apply(codebase: &mut Codebase, commands: &[WritebackCommand]) -> Vec<Appl
 
 fn apply_one(codebase: &mut Codebase, cmd: &WritebackCommand) -> ApplyResult {
     match cmd {
+        WritebackCommand::CodebaseHint { codebase } => ApplyResult {
+            command: format!("codebase_hint: {codebase}"),
+            outcome: ApplyOutcome::Applied,
+        },
         WritebackCommand::TaskCompleted { task_id } => match update_task_status(codebase, task_id, TaskStatus::Done)
         {
             Ok(()) => ApplyResult {

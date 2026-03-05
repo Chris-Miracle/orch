@@ -37,6 +37,19 @@ pub struct DetectedStack {
     pub confidence: Confidence,
 }
 
+/// A discovered agent file or directory inside a codebase.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AgentFileHit {
+    /// Provider family, e.g. `"claude"`, `"cursor"`, `"copilot"`.
+    pub provider: String,
+    /// Absolute on-disk path of the discovered file/directory.
+    pub path: PathBuf,
+    /// Whether the path is a directory.
+    pub is_dir: bool,
+    /// Whether this path is a subagent/skills/rules-style nested artifact.
+    pub is_subagent: bool,
+}
+
 /// Errors from stack detection.
 #[derive(Debug, Error)]
 pub enum DetectError {
@@ -73,6 +86,83 @@ pub fn detect_stack(path: &Path) -> Result<DetectedStack, DetectError> {
     if let Some(s) = detect_python(path)? { return Ok(s); }
 
     Err(DetectError::UnknownStack { path: path.to_path_buf() })
+}
+
+/// Scan a codebase root for known agent instruction files/directories.
+///
+/// The result is deterministic by path ordering and includes both primary
+/// instruction files and nested subagent/skills/rules locations.
+pub fn scan_agent_files(path: &Path) -> Result<Vec<AgentFileHit>, DetectError> {
+    let mut hits = Vec::new();
+
+    let known_paths: &[(&str, &str, bool)] = &[
+        // Claude
+        ("claude", "CLAUDE.md", false),
+        ("claude", ".claude/CLAUDE.md", false),
+        ("claude", "CLAUDE.local.md", false),
+        ("claude", ".claude/agents", true),
+        ("claude", ".claude/rules", true),
+        ("claude", ".claude/agent-memory", true),
+        // Cursor
+        ("cursor", ".cursor", false),
+        ("cursor", ".cursorrules", false),
+        // Windsurf
+        ("windsurf", ".windsurf", false),
+        ("windsurf", ".windsurfrules", false),
+        // Copilot
+        ("copilot", ".github/copilot-instructions.md", false),
+        ("copilot", ".github/instructions", true),
+        // Codex / AGENTS
+        ("codex", "AGENTS.md", false),
+        ("codex", ".codex", true),
+        // Gemini
+        ("gemini", "GEMINI.md", false),
+        ("gemini", ".gemini", false),
+        // Cline
+        ("cline", ".clinerules", false),
+        ("cline", ".agents/skills", true),
+        // Antigravity
+        ("antigravity", ".agent", false),
+        // Generic
+        ("generic", "rules", true),
+    ];
+
+    for (provider, rel, is_subagent) in known_paths {
+        let p = path.join(rel);
+        if p.exists() {
+            hits.push(AgentFileHit {
+                provider: (*provider).to_string(),
+                is_dir: p.is_dir(),
+                path: p,
+                is_subagent: *is_subagent,
+            });
+        }
+    }
+
+    // Root-level generic patterns.
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let p = entry.path();
+        let Some(name) = p.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+
+        if name.starts_with(".aider")
+            || name.ends_with(".mdc")
+            || name.ends_with(".rules")
+        {
+            hits.push(AgentFileHit {
+                provider: "generic".to_string(),
+                is_dir: p.is_dir(),
+                path: p,
+                is_subagent: false,
+            });
+        }
+    }
+
+    hits.sort_by(|a, b| a.path.cmp(&b.path));
+    hits.dedup_by(|a, b| a.path == b.path);
+    Ok(hits)
 }
 
 // ---------------------------------------------------------------------------

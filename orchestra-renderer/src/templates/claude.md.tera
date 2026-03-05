@@ -5,6 +5,8 @@
 #}
 {% include "shared/_header.tera" %}
 
+> Primary workflow context lives in `.orchestra/pilot.md`.
+
 # {{ codebase_name }}
 
 This is the project memory file for Claude Code. It provides persistent context
@@ -36,6 +38,10 @@ Refer to the README or project root for build, test, and lint commands.
 Ask for clarification if you are unsure which commands apply.
 
 {% include "shared/_tasks.tera" %}
+
+{% include "shared/_subagent_delegation.tera" %}
+
+{% include "shared/_worktree_instructions.tera" %}
 
 ## Notes
 

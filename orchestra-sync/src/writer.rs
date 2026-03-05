@@ -192,6 +192,10 @@ pub fn sync_codebase(
         }
     }
 
+    let (pilot_path, pilot_content) = renderer.render_pilot(&ctx)?;
+    let pilot_result = atomic_write(&pilot_path, &pilot_content, &mut store.files, dry_run)?;
+    writes.push(pilot_result);
+
     // Save the updated hash store (skip in dry-run — no filesystem changes).
     if !dry_run {
         store.synced_at = sync_started_at;

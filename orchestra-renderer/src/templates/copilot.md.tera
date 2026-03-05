@@ -7,6 +7,8 @@
 #}
 {% include "shared/_header.tera" %}
 
+> Primary workflow context lives in `.orchestra/pilot.md`.
+
 # Copilot Instructions — `{{ codebase_name }}`
 
 ## Project Overview
@@ -40,6 +42,10 @@ This repository is **`{{ codebase_name }}`** located at `{{ codebase_path }}`.
 {% include "shared/_conventions_inline.tera" %}
 
 {% include "shared/_skills.tera" %}
+
+{% include "shared/_subagent_delegation.tera" %}
+
+{% include "shared/_worktree_instructions.tera" %}
 
 ## Active Tasks ({{ active_task_count }})
 {% for task in tasks %}

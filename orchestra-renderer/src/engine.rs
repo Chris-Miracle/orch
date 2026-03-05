@@ -5,17 +5,16 @@
 //! | Agent       | Output path(s)                                               |
 //! |-------------|--------------------------------------------------------------|
 //! | Claude      | `CLAUDE.md`                                                  |
-//! | Cursor      | `.cursor/rules/orchestra.mdc`                                |
-//! | Windsurf    | `.windsurf/rules/orchestra.md`                               |
+//! | Cursor      | `.cursor/rules/orchestra.mdc`, `.cursor/skills/orchestra-sync/skill.md` |
+//! | Windsurf    | `.windsurf/rules/orchestra.md`, `.windsurf/skills/orchestra-sync/skill.md` |
 //! | Copilot     | `.github/copilot-instructions.md`                            |
-//! | Codex       | `AGENTS.md`                                                  |
-//! | Gemini      | `GEMINI.md`, `.gemini/settings.json`, `.gemini/styleguide.md`|
+//! | Codex       | `AGENTS.md`, `.codex/skills/orchestra-sync/skill.md`        |
+//! | Gemini      | `GEMINI.md`, `.gemini/settings.json`, `.gemini/styleguide.md`, `.gemini/skills/orchestra-sync/skill.md`|
 //! | Cline       | `.clinerules/orchestra.md`                                   |
-//! | Antigravity | `.agent/rules/orchestra.md`                                  |
+//! | Antigravity | `.agent/rules/orchestra.md`, `.agent/skills/orchestra-sync/skill.md` |
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-
 use tera::Tera;
 
 use orchestra_core::types::Codebase;
@@ -40,14 +39,54 @@ const TPLS: &[(&str, &str)] = &[
         include_str!("templates/_partials/conventions_section.tera"),
     ),
     ("shared/_skills.tera", include_str!("templates/_partials/skills.tera")),
+    (
+        "shared/_orchestra_workflow.tera",
+        include_str!("templates/_partials/orchestra_workflow.tera"),
+    ),
+    (
+        "shared/_subagent_delegation.tera",
+        include_str!("templates/_partials/subagent_delegation.tera"),
+    ),
+    (
+        "shared/_worktree_instructions.tera",
+        include_str!("templates/_partials/worktree_instructions.tera"),
+    ),
     ("claude/claude.md.tera", include_str!("templates/claude.md.tera")),
+    (
+        "claude/rules.md.tera",
+        include_str!("templates/claude_rules.md.tera"),
+    ),
+    (
+        "claude/subagent-worker.md.tera",
+        include_str!("templates/claude_subagent_worker.md.tera"),
+    ),
+    (
+        "claude/subagent-reviewer.md.tera",
+        include_str!("templates/claude_subagent_reviewer.md.tera"),
+    ),
     ("cursor/cursorrules.tera", include_str!("templates/cursor.mdc.tera")),
+    (
+        "cursor/skill-orchestra-sync.md.tera",
+        include_str!("templates/cursor_skill_orchestra_sync.md.tera"),
+    ),
     ("windsurf/orchestra.md.tera", include_str!("templates/windsurf.md.tera")),
+    (
+        "windsurf/skill-orchestra-sync.md.tera",
+        include_str!("templates/windsurf_skill_orchestra_sync.md.tera"),
+    ),
     (
         "copilot/copilot-instructions.md.tera",
         include_str!("templates/copilot.md.tera"),
     ),
+    (
+        "copilot/orchestra.instructions.md.tera",
+        include_str!("templates/copilot_path.instructions.md.tera"),
+    ),
     ("codex/agents.md.tera", include_str!("templates/codex.md.tera")),
+    (
+        "codex/skill-orchestra-sync.md.tera",
+        include_str!("templates/codex_skill_orchestra_sync.md.tera"),
+    ),
     (
         "gemini/gemini.md.tera",
         include_str!("templates/gemini_instructions.md.tera"),
@@ -60,10 +99,26 @@ const TPLS: &[(&str, &str)] = &[
         "gemini/styleguide.md.tera",
         include_str!("templates/gemini_styleguide.md.tera"),
     ),
+    (
+        "gemini/skill-orchestra-sync.md.tera",
+        include_str!("templates/gemini_skill_orchestra_sync.md.tera"),
+    ),
     ("cline/orchestra.md.tera", include_str!("templates/cline.md.tera")),
+    (
+        "cline/skill-orchestra-sync.md.tera",
+        include_str!("templates/cline_skill_orchestra_sync.md.tera"),
+    ),
     (
         "antigravity/orchestra.md.tera",
         include_str!("templates/antigravity.md.tera"),
+    ),
+    (
+        "antigravity/skill-orchestra-sync.md.tera",
+        include_str!("templates/antigravity_skill_orchestra_sync.md.tera"),
+    ),
+    (
+        "pilot/pilot.md.tera",
+        include_str!("templates/pilot.md.tera"),
     ),
 ];
 
@@ -170,21 +225,44 @@ impl AgentKind {
     }
 
     /// Template name(s) to render for this agent.
-    /// Gemini produces three files; all others produce one.
     pub fn template_names(&self) -> &'static [&'static str] {
         match self {
-            AgentKind::Claude      => &["claude/claude.md.tera"],
-            AgentKind::Cursor      => &["cursor/cursorrules.tera"],
-            AgentKind::Windsurf    => &["windsurf/orchestra.md.tera"],
-            AgentKind::Copilot     => &["copilot/copilot-instructions.md.tera"],
-            AgentKind::Codex       => &["codex/agents.md.tera"],
+            AgentKind::Claude      => &[
+                "claude/claude.md.tera",
+                "claude/rules.md.tera",
+                "claude/subagent-worker.md.tera",
+                "claude/subagent-reviewer.md.tera",
+            ],
+            AgentKind::Cursor      => &[
+                "cursor/cursorrules.tera",
+                "cursor/skill-orchestra-sync.md.tera",
+            ],
+            AgentKind::Windsurf    => &[
+                "windsurf/orchestra.md.tera",
+                "windsurf/skill-orchestra-sync.md.tera",
+            ],
+            AgentKind::Copilot     => &[
+                "copilot/copilot-instructions.md.tera",
+                "copilot/orchestra.instructions.md.tera",
+            ],
+            AgentKind::Codex       => &[
+                "codex/agents.md.tera",
+                "codex/skill-orchestra-sync.md.tera",
+            ],
             AgentKind::Gemini      => &[
                 "gemini/gemini.md.tera",
                 "gemini/settings.json.tera",
                 "gemini/styleguide.md.tera",
+                "gemini/skill-orchestra-sync.md.tera",
             ],
-            AgentKind::Cline       => &["cline/orchestra.md.tera"],
-            AgentKind::Antigravity => &["antigravity/orchestra.md.tera"],
+            AgentKind::Cline       => &[
+                "cline/orchestra.md.tera",
+                "cline/skill-orchestra-sync.md.tera",
+            ],
+            AgentKind::Antigravity => &[
+                "antigravity/orchestra.md.tera",
+                "antigravity/skill-orchestra-sync.md.tera",
+            ],
         }
     }
 
@@ -195,29 +273,72 @@ impl AgentKind {
         match self {
             AgentKind::Claude => vec![
                 root.join("CLAUDE.md"),
+                root.join(".claude").join("rules").join("orchestra.md"),
+                root
+                    .join(".claude")
+                    .join("agents")
+                    .join("orchestra-worker.md"),
+                root
+                    .join(".claude")
+                    .join("agents")
+                    .join("orchestra-reviewer.md"),
             ],
             AgentKind::Cursor => vec![
                 root.join(".cursor").join("rules").join("orchestra.mdc"),
+                root
+                    .join(".cursor")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
             ],
             AgentKind::Windsurf => vec![
                 root.join(".windsurf").join("rules").join("orchestra.md"),
+                root
+                    .join(".windsurf")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
             ],
             AgentKind::Copilot => vec![
                 root.join(".github").join("copilot-instructions.md"),
+                root
+                    .join(".github")
+                    .join("instructions")
+                    .join("orchestra.instructions.md"),
             ],
             AgentKind::Codex => vec![
                 root.join("AGENTS.md"),
+                root
+                    .join(".codex")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
             ],
             AgentKind::Gemini => vec![
                 root.join("GEMINI.md"),
                 root.join(".gemini").join("settings.json"),
                 root.join(".gemini").join("styleguide.md"),
+                root
+                    .join(".gemini")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
             ],
             AgentKind::Cline => vec![
                 root.join(".clinerules").join("orchestra.md"),
+                root
+                    .join(".agents")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
             ],
             AgentKind::Antigravity => vec![
                 root.join(".agent").join("rules").join("orchestra.md"),
+                root
+                    .join(".agent")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
             ],
         }
     }
@@ -309,6 +430,14 @@ impl Renderer {
     ) -> Result<Vec<(PathBuf, String)>, RenderError> {
         self.engine.render(ctx, agent)
     }
+
+    /// Render Orchestra pilot entrypoint file.
+    pub fn render_pilot(&self, ctx: &TemplateContext) -> Result<(PathBuf, String), RenderError> {
+        let tera_ctx = ctx.to_tera_context()?;
+        let content = self.engine.tera.render("pilot/pilot.md.tera", &tera_ctx)?;
+        let path = Path::new(&ctx.codebase_path).join(".orchestra").join("pilot.md");
+        Ok((path, content))
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -370,11 +499,56 @@ mod tests {
     }
 
     #[test]
-    fn gemini_produces_three_outputs() {
+    fn gemini_produces_four_outputs() {
         let renderer = Renderer::new().unwrap();
         let cb = make_codebase("multifile");
         let results = renderer.render(&cb, AgentKind::Gemini).unwrap();
-        assert_eq!(results.len(), 3, "Gemini should produce exactly 3 output files");
+        assert_eq!(results.len(), 4, "Gemini should produce exactly 4 output files");
+    }
+
+    #[test]
+    fn claude_produces_context_rules_and_subagents() {
+        let renderer = Renderer::new().unwrap();
+        let cb = make_codebase("claudeapp");
+        let results = renderer.render(&cb, AgentKind::Claude).unwrap();
+        assert_eq!(results.len(), 4, "Claude should produce 4 files");
+    }
+
+    #[test]
+    fn copilot_produces_repo_and_path_instructions() {
+        let renderer = Renderer::new().unwrap();
+        let cb = make_codebase("copilotapp");
+        let results = renderer.render(&cb, AgentKind::Copilot).unwrap();
+        assert_eq!(results.len(), 2, "Copilot should produce 2 files");
+    }
+
+    #[test]
+    fn cline_produces_rules_and_skill_file() {
+        let renderer = Renderer::new().unwrap();
+        let cb = make_codebase("clineapp");
+        let results = renderer.render(&cb, AgentKind::Cline).unwrap();
+        assert_eq!(results.len(), 2, "Cline should produce 2 files");
+    }
+
+    #[test]
+    fn cursor_windsurf_codex_gemini_antigravity_produce_skill_files() {
+        let renderer = Renderer::new().unwrap();
+        let cb = make_codebase("skillsapp");
+
+        let cursor = renderer.render(&cb, AgentKind::Cursor).unwrap();
+        assert_eq!(cursor.len(), 2, "Cursor should produce 2 files");
+
+        let windsurf = renderer.render(&cb, AgentKind::Windsurf).unwrap();
+        assert_eq!(windsurf.len(), 2, "Windsurf should produce 2 files");
+
+        let codex = renderer.render(&cb, AgentKind::Codex).unwrap();
+        assert_eq!(codex.len(), 2, "Codex should produce 2 files");
+
+        let gemini = renderer.render(&cb, AgentKind::Gemini).unwrap();
+        assert_eq!(gemini.len(), 4, "Gemini should produce 4 files");
+
+        let antigravity = renderer.render(&cb, AgentKind::Antigravity).unwrap();
+        assert_eq!(antigravity.len(), 2, "Antigravity should produce 2 files");
     }
 
     #[test]

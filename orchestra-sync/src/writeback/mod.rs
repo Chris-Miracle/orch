@@ -72,7 +72,7 @@ pub fn process_writeback(home: &Path, agent_file: &Path) -> Result<WritebackOutc
 
     // 3. Find the codebase that owns this agent file
     let all = registry::list_codebases_at(home)?;
-    let owning_codebase = find_owning_codebase(&all, agent_file);
+    let owning_codebase = find_owning_codebase(&all, agent_file, &parse_result.commands);
 
     let (project_name, mut codebase) = match owning_codebase {
         Some(pair) => pair,
@@ -252,9 +252,23 @@ fn apply_hash_store_lifecycle(
 fn find_owning_codebase(
     all: &[(orchestra_core::types::ProjectName, orchestra_core::types::Codebase)],
     agent_file: &Path,
+    commands: &[WritebackCommand],
 ) -> Option<(orchestra_core::types::ProjectName, orchestra_core::types::Codebase)> {
     // Canonicalize to resolve symlinks / relative components.
     let canonical_agent = std::fs::canonicalize(agent_file).unwrap_or_else(|_| agent_file.to_path_buf());
+
+    if let Some(hint_name) = commands.iter().rev().find_map(|command| match command {
+        WritebackCommand::CodebaseHint { codebase } => Some(codebase.as_str()),
+        _ => None,
+    }) {
+        if let Some((project_name, codebase)) = all
+            .iter()
+            .find(|(_, codebase)| codebase.name.0 == hint_name)
+            .cloned()
+        {
+            return Some((project_name, codebase));
+        }
+    }
 
     for (project_name, codebase) in all {
         let codebase_root = &codebase.path;
@@ -538,5 +552,39 @@ mod tests {
         assert!(updated.contains("orchestra:error"));
         assert!(updated.contains("File not associated with any registered codebase"));
         assert!(!updated.contains("orchestra:update"));
+    }
+
+    #[test]
+    fn process_writeback_codebase_hint_maps_unmanaged_file() {
+        let home = TempDir::new().unwrap();
+        let workspace = TempDir::new().unwrap();
+        setup(&home, &workspace, "test_cb");
+
+        pipeline::run(home.path(), SyncScope::Codebase("test_cb".to_owned()), false)
+            .expect("initial sync");
+
+        let file = home.path().join("delegated-output.md");
+        let content = [
+            "Header",
+            "<!-- orchestra:update -->",
+            "codebase_hint: test_cb",
+            "convention_added: Delegated writeback convention",
+            "<!-- /orchestra:update -->",
+        ]
+        .join("\n");
+        fs::write(&file, content).expect("write delegated file");
+
+        let outcome = process_writeback(home.path(), &file).expect("process");
+        assert!(outcome.block_found);
+        assert!(outcome.block_stripped);
+        assert!(!outcome.error_block_written, "hinted file should resolve to codebase");
+        assert!(outcome.parse_errors.is_empty());
+
+        let all = registry::list_codebases_at(home.path()).expect("list");
+        let (_, cb) = all.into_iter().find(|(_, cb)| cb.name.0 == "test_cb").expect("cb");
+        assert!(cb
+            .conventions
+            .iter()
+            .any(|entry| entry == "Delegated writeback convention"));
     }
 }

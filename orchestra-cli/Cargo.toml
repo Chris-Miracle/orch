@@ -14,6 +14,7 @@ anyhow = "1"
 orchestra-core = { path = "../orchestra-core" }
 orchestra-sync = { path = "../orchestra-sync" }
 orchestra-daemon = { path = "../orchestra-daemon" }
+orchestra-detector = { path = "../orchestra-detector" }
 dirs = "5"
 colored = "2"
 tabled = "0.14"
