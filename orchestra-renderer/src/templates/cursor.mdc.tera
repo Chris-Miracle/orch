@@ -11,6 +11,8 @@ alwaysApply: true
 ---
 {% include "shared/_header.tera" %}
 
+> Primary workflow context lives in `.orchestra/pilot.md`.
+
 # `{{ codebase_name }}` — Cursor Rules
 
 ## Project
@@ -27,6 +29,10 @@ alwaysApply: true
 {% include "shared/_conventions_inline.tera" %}
 
 {% include "shared/_skills.tera" %}
+
+{% include "shared/_subagent_delegation.tera" %}
+
+{% include "shared/_worktree_instructions.tera" %}
 
 ## Active Work ({{ active_task_count }} tasks)
 {% for task in tasks %}- [{{ task.status }}] **{{ task.id }}** — {{ task.title }}

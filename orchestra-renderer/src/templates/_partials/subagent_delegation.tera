@@ -1,0 +1,12 @@
+{# Shared partial: subagent delegation instructions #}
+{# Usage: {% include "shared/_subagent_delegation.tera" %} #}
+
+## Subagent Delegation
+
+When a task is large or benefits from specialisation, delegate to subagents:
+
+- **Implementation work** — use the `orchestra-worker` subagent (Claude: `.claude/agents/orchestra-worker.md`; other providers: create a focused subtask).
+- **Code review** — use the `orchestra-reviewer` subagent (Claude: `.claude/agents/orchestra-reviewer.md`; other providers: self-review or request review).
+- **Research / exploration** — create a read-only subtask; avoid writes until the approach is validated.
+- Keep delegated work scoped to a single concern per subagent invocation.
+- Report delegation outcomes through the Orchestra writeback protocol.

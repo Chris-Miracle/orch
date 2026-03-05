@@ -7,6 +7,8 @@
 #}
 {% include "shared/_header.tera" %}
 
+> Primary workflow context lives in `.orchestra/pilot.md`.
+
 # AGENTS.md — `{{ codebase_name }}`
 
 > This file provides instructions for AI coding agents operating in this repository.
@@ -40,6 +42,10 @@ When in doubt about where code belongs, ask rather than guessing.
 {% include "shared/_conventions_inline.tera" %}
 
 {% include "shared/_skills.tera" %}
+
+{% include "shared/_subagent_delegation.tera" %}
+
+{% include "shared/_worktree_instructions.tera" %}
 
 ## Tasks
 {% for task in tasks %}

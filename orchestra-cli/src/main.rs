@@ -22,8 +22,9 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use commands::{
-    daemon::DaemonCommand, diff::DiffArgs, init::InitArgs, project::ProjectCommand,
-    status::StatusArgs, sync::SyncArgs, update::UpdateArgs,
+    daemon::DaemonCommand, doctor::DoctorArgs, diff::DiffArgs, init::InitArgs,
+    onboard::OnboardArgs, project::ProjectCommand, status::StatusArgs, sync::SyncArgs,
+    update::UpdateArgs,
 };
 use orchestra_core::types::ProjectType;
 
@@ -33,8 +34,10 @@ All available commands:
     project list
     project add
     sync
+    onboard
     status
     diff
+    doctor
     daemon start
     daemon stop
     daemon status
@@ -75,6 +78,9 @@ enum Commands {
     /// Render and write per-agent instruction files for a codebase.
     Sync(SyncArgs),
 
+    /// Onboard a codebase and bootstrap managed agent files.
+    Onboard(OnboardArgs),
+
     /// Show staleness status across registered codebases.
     Status(StatusArgs),
 
@@ -86,6 +92,9 @@ enum Commands {
         #[command(subcommand)]
         command: DaemonCommand,
     },
+
+    /// Run broader system and registry health checks.
+    Doctor(DoctorArgs),
 
     /// Auto-upgrade Orchestra. Use --stable or --beta to switch channels.
     Update(UpdateArgs),
@@ -137,9 +146,11 @@ fn main() -> Result<()> {
         Commands::Init(args) => args.run(),
         Commands::Project { command } => commands::project::run(command),
         Commands::Sync(args) => args.run(),
+        Commands::Onboard(args) => args.run(),
         Commands::Status(args) => args.run(),
         Commands::Diff(args) => args.run(),
         Commands::Daemon { command } => commands::daemon::run(command),
+        Commands::Doctor(args) => args.run(),
         Commands::Update(args) => commands::update::run(args),
     }
 }

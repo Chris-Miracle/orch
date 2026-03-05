@@ -154,6 +154,7 @@ fn managed_paths(codebase: &Codebase) -> Vec<PathBuf> {
     for agent in AgentKind::all() {
         paths.extend(agent.output_paths(&codebase.path));
     }
+    paths.push(codebase.path.join(".orchestra").join("pilot.md"));
     paths
 }
 

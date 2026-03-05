@@ -1,0 +1,55 @@
+{% include "shared/_header.tera" %}
+
+# Orchestra Pilot — {{ codebase_name }}
+
+This is the primary entry point for all agent workflows in this codebase.
+Orchestra manages all generated agent files and keeps them in sync.
+
+## Quick Context
+- Codebase: `{{ codebase_name }}`
+- Root: `{{ codebase_path }}`
+- Active tasks: {{ active_task_count }}
+
+{% include "shared/_stack.tera" %}
+
+## Workflow
+1. Read active tasks and notes before coding.
+2. Implement minimal, focused changes.
+3. Run relevant build/test checks.
+4. Report outcomes through Orchestra writeback blocks.
+5. Let Orchestra sync all provider files.
+
+## Commands
+- `orchestra onboard` — register and bootstrap this codebase
+- `orchestra sync {{ codebase_name }}` — regenerate managed files
+- `orchestra status` — staleness overview
+- `orchestra diff {{ codebase_name }}` — preview sync changes
+- `orchestra doctor` — broader system health checks
+
+## Writeback Protocol
+Use update blocks inside managed files to report task and convention updates.
+
+```md
+<!-- orchestra:update -->
+task-started T-001
+convention-added "Always run tests before finishing"
+<!-- /orchestra:update -->
+```
+
+## Rules for Agents
+- Treat registry YAML as source of truth.
+- Do not hand-edit generated agent files unless intentionally overriding.
+- Continue previous work from active tasks and notes.
+- If a task is large, split subtasks and delegate safely.
+
+{% include "shared/_orchestra_workflow.tera" %}
+
+{% include "shared/_subagent_delegation.tera" %}
+
+{% include "shared/_worktree_instructions.tera" %}
+
+{% include "shared/_conventions_section.tera" %}
+
+{% include "shared/_skills.tera" %}
+
+{% include "shared/_tasks.tera" %}

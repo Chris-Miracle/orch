@@ -1,0 +1,11 @@
+{# Shared partial: worktree and branching instructions #}
+{# Usage: {% include "shared/_worktree_instructions.tera" %} #}
+
+## Parallel Work — Worktrees & Branching
+
+For intensive or parallel feature work:
+
+- **Claude** — subagents with `isolation: worktree` automatically run in a git worktree, enabling safe parallel edits.
+- **Other providers** — create a feature branch before starting large changes. Keep the branch focused on one task.
+- Avoid long-lived branches; merge frequently to reduce conflicts.
+- When using worktrees or branches, include `codebase_hint: {{ codebase_name }}` in writeback blocks so Orchestra can map updates correctly.

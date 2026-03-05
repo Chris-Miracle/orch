@@ -7,10 +7,9 @@
 {% include "shared/_header.tera" %}
 
 # {{ codebase_name }} — Windsurf Rules
+> Primary workflow context lives in `.orchestra/pilot.md`.
 
 ## Project Context
-- **Codebase:** `{{ codebase_name }}`
-- **Root:** `{{ codebase_path }}`
 
 ## Projects
 {% for project in projects %}- `{{ project.name }}` [{{ project.project_type }}]
@@ -25,6 +24,10 @@
 {% include "shared/_conventions_inline.tera" %}
 
 {% include "shared/_skills.tera" %}
+
+{% include "shared/_subagent_delegation.tera" %}
+
+{% include "shared/_worktree_instructions.tera" %}
 
 ## Active Tasks ({{ active_task_count }})
 {% for task in tasks %}- [{{ task.status }}] {{ task.id }}: {{ task.title }}{% if task.description %}

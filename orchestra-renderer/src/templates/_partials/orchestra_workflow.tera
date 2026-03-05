@@ -1,0 +1,6 @@
+{# Shared partial: Orchestra workflow reminder #}
+{# Usage: {% include "shared/_orchestra_workflow.tera" %} #}
+
+> **This codebase is managed by Orchestra.**
+> Read `.orchestra/pilot.md` for the full workflow.
+> Do not edit generated agent files by hand — use the Orchestra writeback protocol.
