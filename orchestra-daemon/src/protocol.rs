@@ -1,13 +1,20 @@
-use std::io::{BufRead, BufReader, Write};
-use std::os::unix::net::UnixStream;
-use std::path::Path;
-use std::thread::sleep;
-use std::time::Duration;
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[cfg(unix)]
+use std::io::{BufRead, BufReader, Write};
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
+#[cfg(unix)]
+use std::path::Path;
+#[cfg(unix)]
+use std::thread::sleep;
+#[cfg(unix)]
+use std::time::Duration;
+
+#[cfg(unix)]
 use crate::error::{io_err, DaemonError};
+#[cfg(unix)]
 use crate::paths::socket_path;
 
 /// JSON newline-delimited request.
@@ -47,6 +54,7 @@ impl DaemonResponse {
 }
 
 /// Send one JSON request to the daemon socket and return one response.
+#[cfg(unix)]
 pub fn send_request(home: &Path, request: &DaemonRequest) -> Result<DaemonResponse, DaemonError> {
     let socket = socket_path(home);
     if !socket.exists() {
@@ -90,6 +98,7 @@ pub fn send_request(home: &Path, request: &DaemonRequest) -> Result<DaemonRespon
     Ok(response)
 }
 
+#[cfg(unix)]
 pub fn request_status(home: &Path) -> Result<Value, DaemonError> {
     let request = DaemonRequest {
         cmd: "status".to_string(),
@@ -116,6 +125,7 @@ pub fn request_status(home: &Path) -> Result<Value, DaemonError> {
     }))
 }
 
+#[cfg(unix)]
 pub fn request_stop(home: &Path) -> Result<(), DaemonError> {
     let response = send_request(
         home,
@@ -127,6 +137,7 @@ pub fn request_stop(home: &Path) -> Result<(), DaemonError> {
     response_into_data(response).map(|_| ())
 }
 
+#[cfg(unix)]
 pub fn request_sync(home: &Path, codebase: Option<String>) -> Result<Value, DaemonError> {
     let response = send_request(
         home,
@@ -138,6 +149,7 @@ pub fn request_sync(home: &Path, codebase: Option<String>) -> Result<Value, Daem
     response_into_data(response)
 }
 
+#[cfg(unix)]
 fn response_into_data(response: DaemonResponse) -> Result<Value, DaemonError> {
     if response.ok {
         Ok(response.data.unwrap_or(Value::Null))
@@ -149,3 +161,43 @@ fn response_into_data(response: DaemonResponse) -> Result<Value, DaemonError> {
         ))
     }
 }
+
+// ---------------------------------------------------------------------------
+// Windows stubs — the daemon uses Unix sockets and is not supported on Windows
+// ---------------------------------------------------------------------------
+
+#[cfg(not(unix))]
+fn not_supported() -> crate::error::DaemonError {
+    crate::error::DaemonError::Protocol(
+        "the Orchestra daemon is not supported on Windows".to_string(),
+    )
+}
+
+#[cfg(not(unix))]
+pub fn send_request(
+    _home: &std::path::Path,
+    _request: &DaemonRequest,
+) -> Result<DaemonResponse, crate::error::DaemonError> {
+    Err(not_supported())
+}
+
+#[cfg(not(unix))]
+pub fn request_status(
+    _home: &std::path::Path,
+) -> Result<Value, crate::error::DaemonError> {
+    Err(not_supported())
+}
+
+#[cfg(not(unix))]
+pub fn request_stop(_home: &std::path::Path) -> Result<(), crate::error::DaemonError> {
+    Err(not_supported())
+}
+
+#[cfg(not(unix))]
+pub fn request_sync(
+    _home: &std::path::Path,
+    _codebase: Option<String>,
+) -> Result<Value, crate::error::DaemonError> {
+    Err(not_supported())
+}
+
