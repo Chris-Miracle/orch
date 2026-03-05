@@ -333,6 +333,10 @@ mod tests {
                 tasks: vec![],
                 agents: vec![],
             }],
+            conventions: vec![],
+            skills: vec![],
+            notes: vec![],
+            tracked_files: vec![],
             created_at: now,
             updated_at: now,
         }

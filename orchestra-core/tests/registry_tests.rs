@@ -69,6 +69,10 @@ fn save_cleans_up_tmp_file() {
         name: cb(),
         path: std::path::PathBuf::from("/code/copnow_api"),
         projects: vec![],
+        conventions: vec![],
+        skills: vec![],
+        notes: vec![],
+        tracked_files: vec![],
         created_at: now,
         updated_at: now,
     };
@@ -87,6 +91,10 @@ fn mid_write_crash_leaves_original_intact() {
         name: cb(),
         path: std::path::PathBuf::from("/code/copnow_api"),
         projects: vec![],
+        conventions: vec![],
+        skills: vec![],
+        notes: vec![],
+        tracked_files: vec![],
         created_at: now,
         updated_at: now,
     };

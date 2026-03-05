@@ -27,6 +27,23 @@ use commands::{
 };
 use orchestra_core::types::ProjectType;
 
+const ALL_COMMANDS_HELP: &str = "
+All available commands:
+    init
+    project list
+    project add
+    sync
+    status
+    diff
+    daemon start
+    daemon stop
+    daemon status
+    daemon install
+    daemon uninstall
+    daemon logs
+    update
+";
+
 // ---------------------------------------------------------------------------
 // CLI entry point
 // ---------------------------------------------------------------------------
@@ -37,6 +54,7 @@ use orchestra_core::types::ProjectType;
     version,
     about = "Manage AI coding agent files across multiple codebases",
     long_about = None,
+    after_help = ALL_COMMANDS_HELP,
 )]
 struct Cli {
     #[command(subcommand)]
@@ -68,6 +86,9 @@ enum Commands {
         #[command(subcommand)]
         command: DaemonCommand,
     },
+
+    /// Check for a newer version of Orchestra and print upgrade instructions.
+    Update,
 }
 
 // ---------------------------------------------------------------------------
@@ -119,5 +140,6 @@ fn main() -> Result<()> {
         Commands::Status(args) => args.run(),
         Commands::Diff(args) => args.run(),
         Commands::Daemon { command } => commands::daemon::run(command),
+        Commands::Update => commands::update::run(),
     }
 }

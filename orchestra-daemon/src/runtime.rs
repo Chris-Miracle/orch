@@ -1,3 +1,4 @@
+#![cfg(unix)]
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::ErrorKind;
@@ -19,7 +20,8 @@ use orchestra_core::{
     types::{Codebase, CodebaseName},
 };
 use orchestra_sync::{
-    pipeline::{self, SyncScope},
+    hash_store,
+    managed_agent_paths, pipeline::{self, SyncScope}, process_writeback,
     staleness, SyncCodebaseResult, WriteResult,
 };
 
@@ -32,6 +34,8 @@ pub type RegistryCache = HashMap<CodebaseName, Codebase>;
 /// Per-codebase last-successful-sync timestamps (Unix seconds).
 /// Key: codebase name string. Value: unix seconds at last successful sync.
 pub type SyncTimestamps = HashMap<String, u64>;
+type OwnWrites = HashMap<PathBuf, Instant>;
+const OWN_WRITE_SUPPRESS_WINDOW: Duration = Duration::from_secs(1);
 
 #[derive(Debug, Clone)]
 enum SyncTarget {
@@ -88,6 +92,8 @@ pub async fn run(home: PathBuf) -> Result<(), DaemonError> {
     let cache = std::sync::Arc::new(RwLock::new(load_registry_cache(&home)?));
     let sync_timestamps: std::sync::Arc<RwLock<SyncTimestamps>> =
         std::sync::Arc::new(RwLock::new(HashMap::new()));
+    let own_writes: std::sync::Arc<RwLock<OwnWrites>> =
+        std::sync::Arc::new(RwLock::new(HashMap::new()));
     let started_at_unix = unix_seconds_now();
 
     let (sync_tx, sync_rx) = mpsc::channel::<SyncJob>(64);
@@ -97,8 +103,9 @@ pub async fn run(home: PathBuf) -> Result<(), DaemonError> {
         let shutdown = shutdown_tx.clone();
         let home = home.clone();
         let sync_tx = sync_tx.clone();
+        let own_writes = own_writes.clone();
         tokio::spawn(async move {
-            let result = watcher_task(home, sync_tx, shutdown.subscribe()).await;
+            let result = watcher_task(home, sync_tx, own_writes, shutdown.subscribe()).await;
             let _ = shutdown.send(());
             result
         })
@@ -109,9 +116,17 @@ pub async fn run(home: PathBuf) -> Result<(), DaemonError> {
         let home = home.clone();
         let cache = cache.clone();
         let timestamps = sync_timestamps.clone();
+        let own_writes = own_writes.clone();
         tokio::spawn(async move {
-            let result =
-                sync_processor_task(home, cache, timestamps, sync_rx, shutdown.subscribe()).await;
+            let result = sync_processor_task(
+                home,
+                cache,
+                timestamps,
+                own_writes,
+                sync_rx,
+                shutdown.subscribe(),
+            )
+            .await;
             let _ = shutdown.send(());
             result
         })
@@ -189,6 +204,7 @@ pub async fn run(home: PathBuf) -> Result<(), DaemonError> {
 async fn watcher_task(
     home: PathBuf,
     sync_tx: mpsc::Sender<SyncJob>,
+    own_writes: std::sync::Arc<RwLock<OwnWrites>>,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<(), DaemonError> {
     let projects = projects_root(&home);
@@ -208,6 +224,9 @@ async fn watcher_task(
     let mut watched_dirs = HashSet::new();
     register_projects_tree(&mut _watcher, &mut watched_dirs, &projects)?;
 
+    // Also watch parent directories of all managed agent files.
+    register_managed_agent_dirs(&mut _watcher, &mut watched_dirs, &home)?;
+
     let mut debounce = HashMap::<PathBuf, Instant>::new();
 
     loop {
@@ -226,40 +245,85 @@ async fn watcher_task(
                     continue;
                 }
 
+                let event_kind = format!("{:?}", event.kind);
+
                 for path in event.paths {
+                    let path_key = fs::canonicalize(&path).unwrap_or_else(|_| path.clone());
+                    tracing::trace!(
+                        event_kind = %event_kind,
+                        path = %path.display(),
+                        canonical_path = %path_key.display(),
+                        "watcher event observed",
+                    );
+
                     // FSEvents is directory-based; always register parent directory.
-                    if let Some(watch_dir) = directory_to_watch(&path) {
+                    if let Some(watch_dir) = directory_to_watch(&path_key) {
                         if watch_dir.starts_with(&projects) && watch_dir.exists() {
                             register_projects_tree(&mut _watcher, &mut watched_dirs, &watch_dir)?;
                         }
                     }
 
-                    if !is_registry_yaml(&path, &projects) {
+                    if is_recent_own_write(&own_writes, &path_key, Instant::now()).await {
+                        tracing::trace!(
+                            path = %path_key.display(),
+                            "skipping watcher event for recent orchestra-owned write"
+                        );
                         continue;
                     }
 
-                    if !should_process_event(&mut debounce, &path, Instant::now()) {
+                    if !should_process_event(&mut debounce, &path_key, Instant::now()) {
+                        tracing::trace!(
+                            path = %path_key.display(),
+                            "watcher event suppressed by debounce"
+                        );
                         continue;
                     }
 
-                    let target = sync_target_for_path(&path);
+                    if is_registry_yaml(&path_key, &projects) {
+                        // — Phase 04 path: registry YAML changed → reload + sync —
+                        let target = sync_target_for_path(&path_key);
 
-                    match enqueue_sync(&sync_tx, target, "watcher").await {
-                        Ok(summary) => {
-                            tracing::info!(
-                                target = %summary.target,
-                                written = summary.written,
-                                unchanged = summary.unchanged,
-                                duration_ms = summary.duration_ms,
-                                "watcher-triggered sync completed",
-                            );
-                            if let Err(err) = run_staleness_scan(home.clone()).await {
-                                tracing::warn!(error = %err, "staleness scan after sync failed");
+                        match enqueue_sync(&sync_tx, target, "watcher").await {
+                            Ok(summary) => {
+                                tracing::info!(
+                                    target = %summary.target,
+                                    written = summary.written,
+                                    unchanged = summary.unchanged,
+                                    duration_ms = summary.duration_ms,
+                                    "watcher-triggered sync completed",
+                                );
+                                if let Err(err) = run_staleness_scan(home.clone()).await {
+                                    tracing::warn!(error = %err, "staleness scan after sync failed");
+                                }
+                            }
+                            Err(err) => {
+                                tracing::error!(error = %err, "watcher-triggered sync failed");
                             }
                         }
-                        Err(err) => {
-                            tracing::error!(error = %err, "watcher-triggered sync failed");
-                        }
+                    } else if is_managed_agent_file(&path_key, &home) {
+                        // — Phase 05 path: agent file changed → check for writeback block —
+                        let home_clone = home.clone();
+                        let path_clone = path_key.clone();
+                        // Run writeback in a blocking task to avoid blocking the async loop.
+                        tokio::task::spawn_blocking(move || {
+                            match process_writeback(&home_clone, &path_clone) {
+                                Ok(outcome) if outcome.block_found => {
+                                    tracing::info!(
+                                        path = %path_clone.display(),
+                                        commands_applied = outcome.apply_results.len(),
+                                        parse_errors = outcome.parse_errors.len(),
+                                        block_stripped = outcome.block_stripped,
+                                        "writeback processed",
+                                    );
+                                }
+                                Ok(_) => {
+                                    // No block — normal agent file edit, ignore.
+                                }
+                                Err(err) => {
+                                    tracing::warn!(error = %err, path = %path_clone.display(), "writeback failed");
+                                }
+                            }
+                        });
                     }
                 }
             }
@@ -273,6 +337,7 @@ async fn sync_processor_task(
     home: PathBuf,
     cache: std::sync::Arc<RwLock<RegistryCache>>,
     timestamps: std::sync::Arc<RwLock<SyncTimestamps>>,
+    own_writes: std::sync::Arc<RwLock<OwnWrites>>,
     mut sync_rx: mpsc::Receiver<SyncJob>,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<(), DaemonError> {
@@ -286,6 +351,16 @@ async fn sync_processor_task(
                 let target = job.target.clone();
                 let source = job.source;
                 let home_for_sync = home.clone();
+
+                match managed_paths_for_target(&home, &target) {
+                    Ok(paths) => mark_own_writes(&own_writes, paths, Instant::now()).await,
+                    Err(err) => tracing::warn!(
+                        error = %err,
+                        target = %target.label(),
+                        "unable to pre-register own write paths before sync"
+                    ),
+                }
+
                 let sync_result = tokio::task::spawn_blocking(move || {
                     pipeline::run(&home_for_sync, target.scope(), false)
                 })
@@ -670,6 +745,157 @@ fn collect_dirs(root: &Path) -> Result<Vec<PathBuf>, DaemonError> {
     dirs.sort();
     dirs.dedup();
     Ok(dirs)
+}
+
+/// Watch all parent directories of managed agent files for all codebases.
+///
+/// Uses `managed_agent_paths` from `orchestra-sync` to enumerate every output
+/// path (CLAUDE.md, AGENTS.md, .cursor/rules/orchestra.mdc, etc.) across all
+/// registered codebases, then watches each unique parent directory.
+fn register_managed_agent_dirs(
+    watcher: &mut RecommendedWatcher,
+    watched_dirs: &mut HashSet<PathBuf>,
+    home: &Path,
+) -> Result<(), DaemonError> {
+    let all = match registry::list_codebases_at(home) {
+        Ok(codebases) => codebases,
+        Err(err) => {
+            tracing::warn!(error = %err, "could not list codebases for agent file watcher");
+            return Ok(());
+        }
+    };
+
+    let paths = managed_agent_paths(&all);
+    log_hash_path_alignment(home, &all, &paths);
+    let mut dirs_to_watch: Vec<PathBuf> = paths
+        .iter()
+        .filter_map(|p| p.parent().map(Path::to_path_buf))
+        .collect();
+    dirs_to_watch.sort();
+    dirs_to_watch.dedup();
+
+    for dir in dirs_to_watch {
+        if !dir.exists() {
+            // Directory may not exist yet if the codebase hasn't been synced.
+            continue;
+        }
+        let canonical = match fs::canonicalize(&dir) {
+            Ok(path) => path,
+            Err(err) if err.kind() == ErrorKind::NotFound => continue,
+            Err(err) => return Err(io_err(&dir, err)),
+        };
+        if watched_dirs.insert(canonical.clone()) {
+            watcher
+                .watch(&canonical, RecursiveMode::NonRecursive)
+                .map_err(DaemonError::Notify)?;
+            tracing::debug!(path = %canonical.display(), "watching agent file directory");
+        }
+    }
+    Ok(())
+}
+
+fn managed_paths_for_target(home: &Path, target: &SyncTarget) -> Result<Vec<PathBuf>, DaemonError> {
+    let all = registry::list_codebases_at(home)?;
+    let selected: Vec<(orchestra_core::types::ProjectName, orchestra_core::types::Codebase)> =
+        match target {
+            SyncTarget::All => all,
+            SyncTarget::Codebase(name) => all
+                .into_iter()
+                .filter(|(_, codebase)| codebase.name.0 == *name)
+                .collect(),
+        };
+    Ok(managed_agent_paths(&selected))
+}
+
+async fn mark_own_writes(
+    own_writes: &std::sync::Arc<RwLock<OwnWrites>>,
+    paths: Vec<PathBuf>,
+    now: Instant,
+) {
+    let mut guard = own_writes.write().await;
+    guard.retain(|_, seen_at| now.duration_since(*seen_at) <= OWN_WRITE_SUPPRESS_WINDOW);
+    for path in paths {
+        let canonical = fs::canonicalize(&path).unwrap_or(path);
+        guard.insert(canonical, now);
+    }
+}
+
+async fn is_recent_own_write(
+    own_writes: &std::sync::Arc<RwLock<OwnWrites>>,
+    path: &Path,
+    now: Instant,
+) -> bool {
+    let canonical = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let mut guard = own_writes.write().await;
+    guard.retain(|_, seen_at| now.duration_since(*seen_at) <= OWN_WRITE_SUPPRESS_WINDOW);
+    guard.contains_key(&canonical)
+}
+
+fn log_hash_path_alignment(
+    home: &Path,
+    all: &[(orchestra_core::types::ProjectName, orchestra_core::types::Codebase)],
+    managed_paths: &[PathBuf],
+) {
+    tracing::info!(
+        managed_paths = managed_paths.len(),
+        "registered managed agent output paths for watcher"
+    );
+
+    for managed_path in managed_paths {
+        tracing::trace!(path = %managed_path.display(), "managed agent output path");
+    }
+
+    for (_project, codebase) in all {
+        let store = match hash_store::load_at(home, &codebase.name.0) {
+            Ok(store) => store,
+            Err(err) => {
+                tracing::debug!(
+                    codebase = %codebase.name.0,
+                    error = %err,
+                    "no readable hash store yet for codebase"
+                );
+                continue;
+            }
+        };
+
+        for hash_path in store.files.keys() {
+            let matches_managed = managed_paths.iter().any(|managed| {
+                let raw = managed.to_string_lossy();
+                let canonical = fs::canonicalize(managed).unwrap_or_else(|_| managed.clone());
+                let canonical = canonical.to_string_lossy();
+                hash_path.as_str() == raw.as_ref() || hash_path.as_str() == canonical.as_ref()
+            });
+
+            if !matches_managed {
+                tracing::warn!(
+                    codebase = %codebase.name.0,
+                    hash_path = %hash_path,
+                    "hash store entry does not match any managed watcher path"
+                );
+            }
+        }
+    }
+}
+
+/// Returns `true` if `path` is a managed agent file output (CLAUDE.md,
+/// AGENTS.md, etc.) for any registered codebase in `home`.
+///
+/// Uses a canonical path comparison so symlinks/private/var paths match.
+fn is_managed_agent_file(path: &Path, home: &Path) -> bool {
+    let all = match registry::list_codebases_at(home) {
+        Ok(codebases) => codebases,
+        Err(_) => return false,
+    };
+    let canonical_path = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let managed = managed_agent_paths(&all);
+    for managed_path in &managed {
+        let canonical_managed =
+            fs::canonicalize(managed_path).unwrap_or_else(|_| managed_path.clone());
+        if canonical_path == canonical_managed {
+            return true;
+        }
+    }
+    false
 }
 
 fn is_relevant_event_kind(kind: &EventKind) -> bool {
