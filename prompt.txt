@@ -1,0 +1,1 @@
+Bump the patch version in Cargo.toml (increment the last number, e.g. 0.1.7 → 0.1.8), run `cargo update -p orchestra-cli` to sync Cargo.lock, then commit with message "chore: bump to v<new-version>" and push to beta. Do not tag. Do not push to main.
