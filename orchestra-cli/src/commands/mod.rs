@@ -1,6 +1,8 @@
 pub mod daemon;
+pub mod doctor;
 pub mod diff;
 pub mod init;
+pub mod onboard;
 pub mod project;
 pub mod status;
 pub mod sync;

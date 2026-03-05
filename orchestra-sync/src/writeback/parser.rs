@@ -95,6 +95,9 @@ fn parse_line(line: &str) -> Result<WritebackCommand, String> {
     }
 
     match verb {
+        "codebase_hint" => Ok(WritebackCommand::CodebaseHint {
+            codebase: value.to_owned(),
+        }),
         "task_completed" => Ok(WritebackCommand::TaskCompleted {
             task_id: value.to_owned(),
         }),
@@ -164,7 +167,7 @@ fn parse_line(line: &str) -> Result<WritebackCommand, String> {
         "file_created" => parse_relative_path(value).map(|path| WritebackCommand::FileCreated { path }),
         "file_deleted" => parse_relative_path(value).map(|path| WritebackCommand::FileDeleted { path }),
         other => Err(format!(
-            "unknown command '{other}'. Supported: task_completed, task_started, task_blocked, subtask_done, skill_discovered, convention_added, note, subagent_used, file_created, file_deleted"
+            "unknown command '{other}'. Supported: codebase_hint, task_completed, task_started, task_blocked, subtask_done, skill_discovered, convention_added, note, subagent_used, file_created, file_deleted"
         )),
     }
 }
@@ -248,6 +251,7 @@ mod tests {
     #[test]
     fn parses_all_ten_commands() {
         let block = [
+            "codebase_hint: copnow_api",
             "task_completed: T-1",
             "task_started: T-2",
             "task_blocked: T-3 | blocked on CI",
@@ -262,7 +266,7 @@ mod tests {
         .join("\n");
 
         let result = parse_block(&block);
-        assert_eq!(result.commands.len(), 10);
+        assert_eq!(result.commands.len(), 11);
         assert!(result.errors.is_empty());
     }
 

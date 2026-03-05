@@ -5,6 +5,7 @@
   Spec: https://cline.bot
 #}
 {% include "shared/_header.tera" %}
+> Primary workflow context lives in `.orchestra/pilot.md`.
 
 # {{ codebase_name }} — Cline Rules
 
@@ -23,6 +24,10 @@
 {% include "shared/_conventions_inline.tera" %}
 
 {% include "shared/_skills.tera" %}
+
+{% include "shared/_subagent_delegation.tera" %}
+
+{% include "shared/_worktree_instructions.tera" %}
 
 ## Projects
 {% for project in projects %}- `{{ project.name }}` [{{ project.project_type }}]

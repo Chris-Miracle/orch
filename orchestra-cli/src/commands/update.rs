@@ -309,15 +309,3 @@ fn defer_cleanup(path: PathBuf) -> DeferCleanup {
     DeferCleanup(path)
 }
 
-// ---------------------------------------------------------------------------
-// Version comparison (semver-lite, no external dep)
-// ---------------------------------------------------------------------------
-
-pub fn version_cmp(a: &str, b: &str) -> std::cmp::Ordering {
-    let parse = |s: &str| {
-        s.split('.')
-            .map(|p| p.parse::<u64>().unwrap_or(0))
-            .collect::<Vec<_>>()
-    };
-    parse(a).cmp(&parse(b))
-}

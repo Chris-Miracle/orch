@@ -9,6 +9,8 @@ use std::path::PathBuf;
 /// A parsed instruction from an agent-written `<!-- orchestra:update -->` block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WritebackCommand {
+    /// Hint for ownership mapping when writeback originates from delegated/worktree context.
+    CodebaseHint { codebase: String },
     /// Mark a task as done by its ID.
     TaskCompleted { task_id: String },
     /// Mark a task as in-progress by ID.

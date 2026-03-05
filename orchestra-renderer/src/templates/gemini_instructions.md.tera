@@ -7,6 +7,8 @@
 #}
 {% include "shared/_header.tera" %}
 
+> Primary workflow context lives in `.orchestra/pilot.md`.
+
 # {{ codebase_name }}
 
 This file provides persistent context for Gemini CLI operating in this repository.
@@ -27,6 +29,10 @@ This file provides persistent context for Gemini CLI operating in this repositor
 {% include "shared/_conventions_inline.tera" %}
 
 {% include "shared/_skills.tera" %}
+
+{% include "shared/_subagent_delegation.tera" %}
+
+{% include "shared/_worktree_instructions.tera" %}
 
 ## Current Work
 

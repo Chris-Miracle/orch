@@ -1,0 +1,19 @@
+{#
+  Claude project rules file (.claude/rules/orchestra.md)
+  Format: Markdown rules loaded by Claude Code for project-scoped guidance.
+#}
+{% include "shared/_header.tera" %}
+
+# Orchestra Rules — {{ codebase_name }}
+
+Always consult `.orchestra/pilot.md` first for workflow, task state, and sync behavior.
+
+## Core Rules
+- Keep edits minimal and task-focused.
+- Preserve existing architecture and code style.
+- Run relevant tests before marking tasks complete.
+- Use writeback updates for task/convention changes.
+
+{% include "shared/_conventions_inline.tera" %}
+
+{% include "shared/_skills.tera" %}
