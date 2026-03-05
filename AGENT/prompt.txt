@@ -21,9 +21,48 @@ Do the following steps in order. Do not skip any step.
 5. Run the following to sync Cargo.lock:
        cargo update -p orchestra-cli
 
-6. Commit all changes with this exact message format:
-       chore: bump to v<new-version>
-   For example:  chore: bump to v0.1.8
+6. Write a meaningful commit message. Do NOT use a bare "chore: bump" message.
+
+   FORMAT:
+       <type>: <concise summary of what changed> (v<new-version>)
+
+   TYPES (pick the most appropriate):
+       feat     — new feature or capability
+       fix      — bug fix
+       refactor — code restructuring without behavior change
+       perf     — performance improvement
+       docs     — documentation-only changes
+       chore    — maintenance / dependency updates with no feature content
+
+   BODY (optional but encouraged for non-trivial releases):
+       After the subject line, leave one blank line, then write 3-8 bullet
+       points summarizing the notable changes in this release. Use past tense.
+
+   EXAMPLES:
+
+       feat: onboard command, doctor checks, pilot generation (v0.1.9)
+
+       - Added `orchestra onboard` with detect-and-confirm, backup, and auto-sync
+       - Added `orchestra doctor` with 9 health checks and --json output
+       - Generated pilot.md as universal entry point across all providers
+       - Expanded template outputs to 8 providers with skill artifacts
+       - Created shared partials for workflow, delegation, and worktree instructions
+       - Added writeback codebase_hint support for ownership resolution
+
+       ---
+
+       fix: staleness false-positive on empty registries (v0.2.1)
+
+       ---
+
+       chore: dependency updates, clippy lint fixes (v0.3.5)
+
+   RULES:
+   • The subject line MUST end with the version in parentheses.
+   • Keep the subject line under 72 characters.
+   • If the release is truly just a version bump with no meaningful changes,
+     "chore: version bump (v<new-version>)" is acceptable — but this should
+     be rare.
 
 7. Detect the current branch and push to it:
        git push origin HEAD
@@ -38,4 +77,35 @@ RELEASE FLOW (for reference):
 
   feature branch  →  PR to beta   →  beta pre-release published automatically
   beta            →  PR to main   →  stable release published automatically
+──────────────────────────────────────────────
+
+──────────────────────────────────────────────
+RELEASE NOTES GUIDANCE
+
+When opening a PR to beta or main, include release notes in the PR
+description. The agent or human opening the PR should generate these.
+
+FORMAT:
+    ## What's New in v<version>
+    
+    ### Features
+    - bullet per feature
+    
+    ### Fixes
+    - bullet per fix
+    
+    ### Improvements
+    - bullet per refactor / perf / docs change
+    
+    ### Breaking Changes
+    - bullet per breaking change (omit section if none)
+
+RULES:
+• Write from the user's perspective — focus on what they can now do, not
+  internal implementation details.
+• Link to relevant issues or discussions where possible.
+• Keep each bullet to one line (wrap at ~80 chars).
+• Omit empty sections entirely.
+• If the release is a single fix or tiny change, a one-liner is fine:
+      "Fixed staleness false-positive when registry is empty."
 ──────────────────────────────────────────────
