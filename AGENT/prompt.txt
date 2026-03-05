@@ -1,5 +1,5 @@
 # Version Bump Prompt
-# Paste this to an AI agent after finishing a feature or fix on the beta branch.
+# Paste this to an AI agent after finishing a feature or fix.
 # ─────────────────────────────────────────────────────────────────────────────
 
 Do the following steps in order. Do not skip any step.
@@ -7,8 +7,7 @@ Do the following steps in order. Do not skip any step.
 1. Read the current version from `/Users/chris/Dev/OS/orch/Cargo.toml` — look
    for the `version = "..."` line under `[workspace.package]`.
 
-2. Also check the latest Git tag on the remote to confirm what was last
-   released:
+2. Check the latest Git tag on the remote to confirm what was last released:
        git ls-remote --tags origin | sort -t/ -k3 -V | tail -5
 
 3. Increment the PATCH number of the current Cargo.toml version by 1.
@@ -26,12 +25,17 @@ Do the following steps in order. Do not skip any step.
        chore: bump to v<new-version>
    For example:  chore: bump to v0.1.8
 
-7. Push to the beta branch:
-       git push origin beta
+7. Detect the current branch and push to it:
+       git push origin HEAD
+   Do NOT hardcode the branch name. Do NOT push to beta or main directly.
 
 8. Do NOT create a Git tag.
-   Do NOT push to main.
+   Do NOT push to main or beta directly.
    Do NOT trigger any release manually.
 
-After the push, a PR from beta → main can be merged on GitHub and the stable
-release workflow will automatically publish the new version.
+──────────────────────────────────────────────
+RELEASE FLOW (for reference):
+
+  feature branch  →  PR to beta   →  beta pre-release published automatically
+  beta            →  PR to main   →  stable release published automatically
+──────────────────────────────────────────────
