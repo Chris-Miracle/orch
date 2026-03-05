@@ -1,21 +1,41 @@
-Update phases.md (located at the repo root) to document the phase that was just completed.
+# Version Bump Prompt
+# Paste this to an AI agent after finishing a feature or fix.
+# ─────────────────────────────────────────────────────────────────────────────
 
-Follow this exact process:
+Do the following steps in order. Do not skip any step.
 
-1. Find the section in phases.md for the phase number you just finished (e.g. "Phase 02").
-2. Change its status from 🔜 to ✅.
-3. Replace the placeholder text with a concise summary structured exactly like the Phase 01 section:
-   - A "What was implemented" table (Area | Detail rows)
-   - A "Using it" section with real shell commands the user can run right now
-   - Keep it short — no prose walls, only what someone needs to actually use it
+1. Read the current version from `/Users/chris/Dev/OS/orch/Cargo.toml` — look
+   for the `version = "..."` line under `[workspace.package]`.
 
-4. Do NOT touch any other phase section.
-5. Do NOT change the "Getting Started" block at the top.
+2. Check the latest Git tag on the remote to confirm what was last released:
+       git ls-remote --tags origin | sort -t/ -k3 -V | tail -5
 
-The document is read by someone who just cloned the repo and wants to know:
-- What new `orchestra` commands or APIs are available
-- Exactly how to call them
-- Where any new files or config live on disk
+3. Increment the PATCH number of the current Cargo.toml version by 1.
+   For example:  0.1.7 → 0.1.8  |  0.2.0 → 0.2.1  |  1.0.3 → 1.0.4
+   (Only bump MINOR or MAJOR if this release contains breaking changes or
+   significant new features — use your judgment.)
 
-After updating phases.md, confirm which section was updated and paste the final
-text of that section so I can verify it looks right before committing.
+4. Write the new version back into `Cargo.toml` (the `version = "..."` line
+   under `[workspace.package]` only).
+
+5. Run the following to sync Cargo.lock:
+       cargo update -p orchestra-cli
+
+6. Commit all changes with this exact message format:
+       chore: bump to v<new-version>
+   For example:  chore: bump to v0.1.8
+
+7. Detect the current branch and push to it:
+       git push origin HEAD
+   Do NOT hardcode the branch name. Do NOT push to beta or main directly.
+
+8. Do NOT create a Git tag.
+   Do NOT push to main or beta directly.
+   Do NOT trigger any release manually.
+
+──────────────────────────────────────────────
+RELEASE FLOW (for reference):
+
+  feature branch  →  PR to beta   →  beta pre-release published automatically
+  beta            →  PR to main   →  stable release published automatically
+──────────────────────────────────────────────

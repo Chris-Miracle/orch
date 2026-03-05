@@ -23,7 +23,7 @@ use clap::{Parser, Subcommand};
 
 use commands::{
     daemon::DaemonCommand, diff::DiffArgs, init::InitArgs, project::ProjectCommand,
-    status::StatusArgs, sync::SyncArgs,
+    status::StatusArgs, sync::SyncArgs, update::UpdateArgs,
 };
 use orchestra_core::types::ProjectType;
 
@@ -87,8 +87,8 @@ enum Commands {
         command: DaemonCommand,
     },
 
-    /// Check for a newer version of Orchestra and print upgrade instructions.
-    Update,
+    /// Auto-upgrade Orchestra. Use --stable or --beta to switch channels.
+    Update(UpdateArgs),
 }
 
 // ---------------------------------------------------------------------------
@@ -140,6 +140,6 @@ fn main() -> Result<()> {
         Commands::Status(args) => args.run(),
         Commands::Diff(args) => args.run(),
         Commands::Daemon { command } => commands::daemon::run(command),
-        Commands::Update => commands::update::run(),
+        Commands::Update(args) => commands::update::run(args),
     }
 }
