@@ -1,7 +1,0 @@
----
-description: Staleness and status checks
-alwaysApply: false
----
-- Surface stale/modified/orphan states explicitly.
-- Ensure status output matches filesystem truth.
-- Include actionable remediation guidance.

@@ -2,28 +2,117 @@
 
 ## Purpose
 
-This is the live operator guide for Orchestra based on two things:
+This guide documents a real end-to-end validation run against the current source tree in this repository.
+It is based on two things:
 
-- a real end-to-end run of the installed `orchestra` binary
-- a full automated test pass of the current source tree
+- a local build of the current CLI copied into a sandbox
+- a full workspace test pass from the current source tree
 
-This file corrects the earlier mistake of documenting `cargo run ...` flows instead of the installed CLI. The command coverage below was executed with the real binary:
+The validation date was March 6, 2026.
+
+---
+
+## Validation setup
+
+The live command run used a copied local binary from this repo, not an older globally installed release and not `cargo run`.
+
+Validation binary source:
 
 ```bash
-orchestra ...
+target/debug/orchestra
 ```
 
-Not with:
+Observed version:
 
 ```bash
-cargo run -p orchestra-cli -- ...
+orchestra 0.1.11
+```
+
+To avoid mutating the real machine state, everything ran inside an isolated sandbox:
+
+- sandboxed `HOME`
+- sandboxed workspace root
+- copied CLI binary on sandbox `PATH`
+- repo copy used as the backend onboarding target
+
+Anonymized sample codebases used in the run:
+
+- `sample_backend` — copy of this repository used for onboarding validation
+- `sample_frontend` — minimal frontend directory registered with `init`
+- `sample_docs` — extra codebase added with `project add`
+
+Project group used in the run:
+
+- `sample-suite`
+
+This guide intentionally avoids personal names, local usernames, and real project labels.
+
+---
+
+## Command coverage
+
+### Help surface verified
+
+These help entrypoints were executed successfully:
+
+```bash
+orchestra --help
+orchestra init --help
+orchestra onboard --help
+orchestra offboard --help
+orchestra project --help
+orchestra project list --help
+orchestra project add --help
+orchestra sync --help
+orchestra status --help
+orchestra diff --help
+orchestra doctor --help
+orchestra daemon --help
+orchestra daemon start --help
+orchestra daemon stop --help
+orchestra daemon status --help
+orchestra daemon install --help
+orchestra daemon uninstall --help
+orchestra daemon logs --help
+orchestra update --help
+orchestra reset --help
+```
+
+### Live execution verified
+
+These commands were executed end to end in the sandbox:
+
+```bash
+orchestra --version
+orchestra onboard <sandbox>/sample_backend --project sample-suite --yes --migrate mechanical
+orchestra init <sandbox>/sample_frontend --project sample-suite --type frontend
+orchestra project add sample_docs --project sample-suite --type frontend
+orchestra project list
+orchestra status --json
+orchestra doctor --json
+orchestra sync sample_backend --dry-run
+orchestra diff sample_backend
+orchestra sync sample_backend
+orchestra sync --all
+orchestra status --json
+orchestra daemon start
+orchestra daemon status
+orchestra daemon logs --lines 20
+orchestra daemon stop
+orchestra update --stable
+orchestra offboard <sandbox>/sample_backend --yes --recent
+orchestra reset --confirm --restore-backups
+orchestra status --json
+cargo test --workspace -q
 ```
 
 ---
 
-## What was actually run
+## Live results
 
-Installed binary:
+## 1. Version and top-level command surface
+
+Command:
 
 ```bash
 orchestra --version
@@ -31,165 +120,70 @@ orchestra --version
 
 Observed:
 
-- `orchestra 0.1.10`
-- binary path: `/Users/chris/.local/bin/orchestra`
+- `orchestra 0.1.11`
 
-A sandboxed validation environment was used so the live run would not mutate the real local Orchestra registry.
+Top-level commands present in help:
 
-Sandbox strategy:
+- `init`
+- `project`
+- `sync`
+- `onboard`
+- `offboard`
+- `status`
+- `diff`
+- `daemon`
+- `doctor`
+- `update`
+- `reset`
 
-- temp HOME was isolated under a temporary sandbox
-- a Rust sample codebase `atlas_api` was onboarded
-- a frontend sample codebase `atlas_web` was initialized manually
-- a third sample codebase `atlas_docs` was added through `orchestra project add`
-- destructive commands were executed only inside that sandbox
-
----
-
-## Command coverage
-
-These are the real installed-CLI commands that were executed.
-
-### Binary and help
-
-```bash
-orchestra --version
-orchestra --help
-orchestra project --help
-orchestra project add --help
-orchestra update --help
-```
-
-### Registry bootstrap and onboarding
-
-```bash
-orchestra onboard <sandbox>/atlas_api --project atlas --yes --migrate mechanical
-orchestra init <sandbox>/atlas_web --project atlas --type frontend
-orchestra project add atlas_docs --project atlas --type frontend
-orchestra project list
-```
-
-### Status, doctor, diff, and sync
-
-```bash
-orchestra status --json
-orchestra doctor --json
-orchestra sync atlas_api --dry-run
-orchestra diff atlas_api
-orchestra sync atlas_api
-orchestra sync --all
-orchestra status --json
-```
-
-### Daemon lifecycle
-
-```bash
-orchestra daemon start
-orchestra daemon status
-orchestra daemon logs --lines 20
-orchestra daemon stop
-```
-
-### Recovery and teardown
-
-```bash
-orchestra offboard <sandbox>/atlas_api --yes --recent
-orchestra reset --confirm --restore-backups
-orchestra status --json
-```
-
-### Automated source-tree validation
-
-```bash
-cargo test --workspace -- --nocapture
-```
-
-### Not executed live
-
-```bash
-orchestra update
-```
-
-Reason:
-
-- `orchestra update` self-replaces the installed binary and depends on remote release state
-- running it during validation would mutate the actual local installation rather than only the sandbox registry
-- it is the only CLI command intentionally not executed end to end
-
----
-
-## Live installed-binary results
-
-## 1. Onboard
+## 2. Onboard on a repo copy
 
 Command:
 
 ```bash
-orchestra onboard <sandbox>/atlas_api --project atlas --yes --migrate mechanical
+orchestra onboard <sandbox>/sample_backend --project sample-suite --yes --migrate mechanical
 ```
 
 Observed output:
 
 - detected stack: `Rust -> backend`
-- found `2` existing agent file or folder entries
-- backed up `2` file entries
-- synced `atlas_api` with `21 file updates`
-- reported mechanical migration complete
+- found `1` existing agent file or folder entry
+- backed up `1` file entry
+- synced `sample_backend` with `22 file updates`
+- imported `149` existing file entries into `orchestra/controls`
+- generated `orchestra/pilot.md`
+- generated `orchestra/.guide.md`
 
-Most important observed paths from the installed binary:
-
-- `orchestra/pilot.md`
-- `orchestra/control/`
-- `orchestra/control/source/`
-
-This is critical: the installed `0.1.10` binary did not use the newer in-repo `orchestra/controls/` plus `.guide.md` layout. It used the older live layout:
+Important layout observed from the current source build:
 
 ```text
 orchestra/
-  control/
-  control/source/
+  .guide.md
   pilot.md
+  controls/
 ```
 
-It also reported this exact behavior:
+This confirms the current codebase is operating on the newer `controls + .guide.md` model.
 
-- existing files were mirrored into `orchestra/control/source`
-- generated files were written into `orchestra/control`
+## 3. Init and project add
 
-So the installed CLI currently behaves differently from the source tree in this repository.
-
-## 2. Init
-
-Command:
+Commands:
 
 ```bash
-orchestra init <sandbox>/atlas_web --project atlas --type frontend
+orchestra init <sandbox>/sample_frontend --project sample-suite --type frontend
+orchestra project add sample_docs --project sample-suite --type frontend
 ```
 
 Observed output:
 
-- `✓ Registered 'atlas_web' under project 'atlas'`
-- saved registry YAML under `~/.orchestra/projects/atlas/atlas_web.yaml`
-
-## 3. Project add
-
-Command:
-
-```bash
-orchestra project add atlas_docs --project atlas --type frontend
-```
-
-Observed output:
-
-- `✓ Added 'atlas_docs' to project 'atlas'`
+- `sample_frontend` registered successfully
+- `sample_docs` added successfully
 
 Observed behavior detail:
 
-- `project add` produced a registry entry for `atlas_docs`
-- before a real directory was created for it, `doctor` flagged it as missing
-- after the directory was created, `sync --all` succeeded for it
-
-This means `project add` can create a registry entry ahead of real filesystem setup.
+- `init` stored an absolute path for `sample_frontend`
+- `project add` stored `sample_docs` as a relative path
+- because the directory existed in the sandbox working directory, later `doctor` and `sync --all` succeeded for it
 
 ## 4. Project list
 
@@ -199,13 +193,17 @@ Command:
 orchestra project list
 ```
 
-Observed output grouped the three codebases correctly under one project:
+Observed grouping:
 
-- `atlas_api`
-- `atlas_docs`
-- `atlas_web`
+- `sample_backend`
+- `sample_docs`
+- `sample_frontend`
 
-## 5. Status before full sync
+All three appeared under the same project group:
+
+- `sample-suite`
+
+## 5. Status immediately after onboard/init/add
 
 Command:
 
@@ -213,18 +211,17 @@ Command:
 orchestra status --json
 ```
 
-Observed output after onboard and init:
+Observed output:
 
-- `atlas_api`: `current`
-- `atlas_docs`: `never_synced`
-- `atlas_web`: `never_synced`
+- `sample_backend` was tracked immediately after onboarding
+- `sample_docs` and `sample_frontend` were registered and visible before their first sync
 
 Interpretation:
 
-- onboarding performs an initial sync for the onboarded codebase
-- `init` and `project add` only register codebases; they do not sync them
+- onboarding, registration, and status reporting all worked in one pass
+- newly registered codebases were visible immediately in the registry state
 
-## 6. Doctor before full sync
+## 6. Doctor before follow-up sync
 
 Command:
 
@@ -234,120 +231,116 @@ orchestra doctor --json
 
 Observed checks:
 
-- `version update`: pass
+- `version update`: warn
 - `binary in PATH`: pass
-- `registry integrity`: pass
 - `daemon socket`: warn
 - `daemon status`: warn
-- `codebase paths`: warn because `atlas_docs` did not exist yet
+- `registry integrity`: pass
+- `codebase paths`: pass
 - `pilot.md presence`: warn for unsynced codebases
+- `guide presence`: warn for unsynced codebases
+- `staleness summary`: pass with `other: 3`
 - `managed files presence`: warn for unsynced codebases
 
 Interpretation:
 
-- `doctor` reflects the registry state accurately
-- unsynced or missing codebases appear immediately as warnings
-- the installed binary still checks only `pilot.md`, not the newer `.guide.md` artifact from the source tree
+- `doctor` reflects the registry and filesystem state accurately
+- never-synced codebases are surfaced immediately
+- the current codebase expects both `orchestra/pilot.md` and `orchestra/.guide.md`
 
-## 7. Dry-run sync
-
-Command:
-
-```bash
-orchestra sync atlas_api --dry-run
-```
-
-Observed output:
-
-- `0 written, 21 unchanged`
-- managed files listed under `orchestra/control/...`
-- pilot listed at `orchestra/pilot.md`
-
-This confirms the installed binary's live managed surface is currently `21` files, not the newer `controls + .guide.md` shape from source.
-
-## 8. Diff after manual drift
-
-A manual edit was introduced into the installed binary's managed file:
-
-- `orchestra/control/CLAUDE.md`
+## 7. Dry-run sync preview
 
 Command:
 
 ```bash
-orchestra diff atlas_api
+orchestra sync sample_backend --dry-run
 ```
 
 Observed output:
 
-- diff correctly showed the manual marker in `orchestra/control/CLAUDE.md`
+- `7 written, 15 unchanged`
+
+Files predicted to change included:
+
+- `orchestra/controls/CLAUDE.md`
+- `orchestra/controls/.github/copilot-instructions.md`
+- `orchestra/controls/AGENTS.md`
+- `orchestra/controls/GEMINI.md`
+- `orchestra/controls/.gemini/styleguide.md`
+- `orchestra/controls/.agent/rules/orchestra.md`
+- `orchestra/.guide.md`
 
 Interpretation:
 
-- `diff` can detect drift in managed files correctly
+- `sync --dry-run` previewed the exact changes that a real sync would apply
+- the dry-run surface matched the later real sync result
+
+## 8. Diff after manual drift
+
+A manual sentinel line was appended to:
+
+- `orchestra/controls/CLAUDE.md`
+
+Command:
+
+```bash
+orchestra diff sample_backend
+```
+
+Observed output:
+
+- the diff included the manual sentinel line
+
+Interpretation:
+
+- `diff` detected real manual drift correctly
+- `diff` matched the same rewrite set shown by dry-run sync
 
 ## 9. Real sync after drift
 
 Command:
 
 ```bash
-orchestra sync atlas_api
+orchestra sync sample_backend
 ```
 
 Observed output:
 
-- `✓ 'atlas_api' synced (0 written, 21 unchanged)`
-
-This is a real bug in the installed CLI validation run.
-
-Why it is a bug:
-
-- `diff` saw drift in `orchestra/control/CLAUDE.md`
-- later `status` still reported the codebase as modified
-- but `sync` still claimed nothing was written
-
-So for the installed binary, the live behavior is inconsistent:
-
-- `diff` sees the manual change
-- `status` sees the manual change
-- `sync` does not repair the manual change
-
-## 10. Sync all
-
-Command:
-
-```bash
-orchestra sync --all
-```
-
-Observed output:
-
-- `atlas_api`: `0 written, 21 unchanged`
-- `atlas_docs`: `21 written, 0 unchanged`
-- `atlas_web`: `21 written, 0 unchanged`
+- `7 written, 15 unchanged`
+- the sentinel was removed
+- post-check result: `DRIFT_REMAINS=no`
 
 Interpretation:
 
-- registry-wide sync works for never-synced codebases
-- the same inconsistency remained for the already-drifted `atlas_api`
+- the current source build repairs modified managed files correctly
+- the earlier drift mismatch seen in older live-release validation is not reproduced here
 
-## 11. Status after drift and sync
+## 10. Sync all and clean status
 
-Command:
+Commands:
 
 ```bash
+orchestra sync --all
 orchestra status --json
 ```
 
 Observed output:
 
-- `atlas_api`: `modified`
-- detail: `orchestra/control/CLAUDE.md edited`
-- `atlas_docs`: `current`
-- `atlas_web`: `current`
+- `sample_backend`: `0 written, 22 unchanged`
+- `sample_docs`: `22 written, 0 unchanged`
+- `sample_frontend`: `22 written, 0 unchanged`
 
-This confirms the installed binary left `atlas_api` drift unresolved even after `sync` and `sync --all`.
+Observed final status:
 
-## 12. Daemon lifecycle
+- all three codebases reported `current`
+- summary reported `projects: 1`, `codebases: 3`, `stale: 0`
+
+Interpretation:
+
+- registry-wide sync works on both already-synced and never-synced codebases
+- the current generated surface is `22` tracked outputs per codebase in this run
+
+## 11. Daemon start, status, logs, and stop
 
 Commands:
 
@@ -360,68 +353,82 @@ orchestra daemon stop
 
 Observed results:
 
-- daemon started successfully
-- `daemon status` returned `running: true`
-- socket path was created inside the sandbox `~/.orchestra/daemon.sock`
+- daemon started successfully in the sandbox
+- `daemon status` reported `running: true`
+- socket path was created under sandbox `~/.orchestra/daemon.sock`
+- status listed all three codebases
 - `daemon logs` reported both log files missing
-- `daemon stop` worked
+- `daemon stop` succeeded
 
-Observed warnings at startup:
+Observed daemon stdout note:
 
-- hash store entries did not match managed watcher paths
-- warnings referenced `orchestra/pilot.md`
+- watcher registered `66` managed agent output paths
 
 Interpretation:
 
-- daemon lifecycle works
-- watcher path logic in the installed binary appears inconsistent with recorded managed paths
-- the warning is not just environmental noise here; it is tied to the installed path model
+- foreground daemon lifecycle works
+- status payload is structured and useful
+- `daemon logs` executed as part of the same lifecycle validation
+
+## 12. Update command execution
+
+Command:
+
+```bash
+orchestra update --stable
+```
+
+This was executed on a throwaway copied binary, not on the main validation binary.
+
+Observed output:
+
+- channel switched to `stable`
+- download completed successfully
+- copied binary was replaced successfully on the selected channel
+
+Interpretation:
+
+- the updater path executed successfully against a throwaway copied binary
+- the self-replacement flow worked without touching the main validation binary
 
 ## 13. Offboard
 
 Command:
 
 ```bash
-orchestra offboard <sandbox>/atlas_api --yes --recent
+orchestra offboard <sandbox>/sample_backend --yes --recent
 ```
 
 Observed output:
 
-- restored `2` files from backup
+- backup found
+- `20` managed agent files scheduled for removal
+- restored `1` file from backup
 - removed `20` managed files
 - removed `orchestra/` directory
-- deregistered `atlas_api`
+- deregistered `sample_backend`
 
 Interpretation:
 
-- offboard works end to end in the installed binary
-- it restored the pre-onboard legacy files successfully
+- offboard works end to end on the current source build
+- the pre-onboard asset that was backed up was restored successfully
 
 ## 14. Reset
 
-Command:
+Commands:
 
 ```bash
 orchestra reset --confirm --restore-backups
+orchestra status --json
 ```
 
 Observed output:
 
 - found `2` remaining registered codebases
 - removed managed files for both
-- removed project-local `orchestra/` directories
+- removed their local `orchestra/` directories
 - removed sandbox `~/.orchestra/`
-
-Follow-up command:
-
-```bash
-orchestra status --json
-```
-
-Observed output:
-
-- `projects: 0`
-- `codebases: 0`
+- final status showed `0` projects and `0` codebases
 
 Interpretation:
 
@@ -429,104 +436,20 @@ Interpretation:
 
 ---
 
-## Full automated source-tree validation
+## Automated validation
 
 Command:
 
 ```bash
-cargo test --workspace -- --nocapture
+cargo test --workspace -q
 ```
 
 Observed result:
 
-- full workspace suite passed
+- exit code `0`
+- all test binaries completed without failures
 
-Important coverage areas from the current source tree:
-
-- onboarding
-- provider-aware imports
-- hidden guide generation
-- task-table parsing and propagation
-- dry-run sync
-- status and diff
-- daemon autosync
-- offboard
-- reset
-- backup restore
-
----
-
-## Source tree versus installed binary
-
-This repository currently contains a newer architecture than the installed `orchestra 0.1.10` binary that was validated live.
-
-## Current source tree behavior
-
-The source tree in this repo is implementing or documenting:
-
-- `orchestra/controls/`
-- `orchestra/.guide.md`
-- provider-aware imports into matching generated destinations
-- a canonical `<!-- orchestra:tasks -->` block
-- offboard and reset flows covered by tests
-
-## Installed binary behavior actually observed live
-
-The installed binary currently uses:
-
-- `orchestra/control/`
-- `orchestra/control/source/`
-- `orchestra/pilot.md`
-- no generated `.guide.md` in the live installed flow that was validated
-
-That means the repo is ahead of the installed binary.
-
-This distinction matters:
-
-- if you are documenting the current code in this repo, the newer `controls + .guide.md` model is relevant
-- if you are documenting what users get from the installed `orchestra 0.1.10` binary today, the live behavior is still `control + control/source`
-
----
-
-## Real issues found during live installed-CLI validation
-
-## High severity
-
-- `sync` did not repair a modified managed file even though both `diff` and `status` detected the drift
-- installed path model does not match the current source-tree model documented elsewhere in the repo
-
-## Medium severity
-
-- daemon startup warns that hash store entries do not match managed watcher paths
-- `project add` can leave the registry pointing at a codebase path that does not yet exist
-
-## Low severity
-
-- `daemon logs` reports missing log files in this foreground lifecycle path
-- command help exists for `update`, but live update was intentionally not executed because it mutates the installed binary itself
-
----
-
-## Source-tree follow-up after live validation
-
-After the installed `0.1.10` validation exposed the drift mismatch, the current source tree was updated and re-tested.
-
-What changed in source:
-
-- `orchestra-sync` no longer treats a stored hash match as sufficient proof that a file is unchanged
-- sync now re-hashes the on-disk managed file before returning `unchanged`
-- legacy hash-store keys pointing at root-level outputs, `.orchestra/controls/...`, or `orchestra/control/...` are migrated in memory to the current `orchestra/controls/...` layout when a codebase is loaded
-
-What this means:
-
-- the current repo no longer reproduces the specific bug where `diff` and `status` detect a modified managed file but `sync` reports `0 written`
-- the current repo now carries an explicit compatibility path for older managed-file layouts when reading hash stores
-- the installed `orchestra 0.1.10` binary remains behind these fixes until a new release is built and installed
-
-Validation run for the source-tree follow-up:
-
-- targeted `orchestra-sync` regression tests passed for drift rewrite and legacy hash-key migration
-- targeted CLI regression test passed for `orchestra sync` repairing a modified managed file and returning the codebase to `current`
+This validates the current source tree in addition to the manual command run above.
 
 ---
 
@@ -534,19 +457,13 @@ Validation run for the source-tree follow-up:
 
 If your goal is to understand the code under active development in this repository:
 
-- trust the source tree and the passing workspace tests
+- trust this source-tree validation run
+- trust the current generated layout: `orchestra/controls/`, `orchestra/.guide.md`, and `orchestra/pilot.md`
+- trust the passing workspace test suite
 
-If your goal is to understand the behavior a user gets from the installed `orchestra 0.1.10` binary today:
+If your goal is to understand stable-release behavior:
 
-- trust the live CLI results in this guide
+- re-run this same process against the current published binary
+- do not assume the latest release matches the local source build version
 
-Those are not currently the same thing.
-
----
-
-## Recommended next steps
-
-1. Cut a new release so the installed `orchestra` binary matches the current `orchestra/controls` plus `.guide.md` source-tree model and includes the sync/hash-store fixes.
-2. Re-run the same installed-CLI validation against that new release to confirm the live binary no longer reproduces the old `sync` mismatch.
-3. Re-check daemon watcher alignment on the released binary now that legacy hash keys are normalized in the source tree.
-4. Decide whether `project add` should create the filesystem path or reject nonexistent targets.
+For open issues and contribution starting points discovered during this validation run, see [issues.md](/Users/chris/Dev/OS/orch/issues.md).

@@ -23,6 +23,7 @@ Orchestra is an open-source macOS CLI that manages every AI coding agent — Cla
 - [Release channels](#release-channels)
 - [Quick start](#quick-start)
 - [Operational guide](#operational-guide)
+- [Issues and contribution ideas](#issues-and-contribution-ideas)
 - [Commands](#commands)
   - [orchestra onboard](#orchestra-onboard)
   - [orchestra offboard](#orchestra-offboard)
@@ -248,14 +249,19 @@ orchestra status
 
 ## Operational guide
 
-For a full end-to-end walkthrough of the current system, live validation notes, command behavior, daemon lifecycle, recovery coverage, and the task/writeback model, see [guide.md](guide.md).
+For a full end-to-end walkthrough of the current system, validated command behavior, daemon lifecycle, recovery coverage, and the task/writeback model, see [guide.md](guide.md).
 
-The current implementation state reflected in that guide is:
+That guide is intentionally focused on what works well in the current source-tree version validated on March 6, 2026.
 
-- the current source tree is ahead of the installed `orchestra 0.1.10` binary in several areas
-- the guide documents both the live installed-CLI behavior and the newer in-repo `orchestra/controls/` plus `.guide.md` architecture
-- the guide includes a real installed-binary validation pass for `onboard`, `init`, `project`, `status`, `doctor`, `sync`, `diff`, `daemon`, `offboard`, and `reset`
-- the guide records the live issues found during that installed-binary pass and the source-tree follow-up fixes that now address the sync mismatch on modified managed files
+The current validated source-tree state reflected there is:
+
+- the current generated layout is `orchestra/controls/`, `orchestra/.guide.md`, and `orchestra/pilot.md`
+- the source-tree CLI command flow was validated end to end in a sandbox
+- the workspace test suite passed with `cargo test --workspace -q`
+
+### Issues and contribution ideas
+
+If you want to contribute, start with [issues.md](issues.md). It collects the open problems and follow-up ideas found during the latest source-tree validation run.
 
 ---
 
@@ -922,6 +928,8 @@ Orchestra is built as a Rust workspace with six crates:
 ## Contributing
 
 Orchestra is open source under the [MIT License](LICENSE). Contributions are welcome.
+
+If you want a concrete starting point, begin with [issues.md](issues.md). It lists the open issues and contribution ideas discovered during the latest end-to-end validation pass.
 
 ### Branch model
 
