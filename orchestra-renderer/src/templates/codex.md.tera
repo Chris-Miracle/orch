@@ -7,7 +7,7 @@
 #}
 {% include "shared/_header.tera" %}
 
-> Primary workflow context lives in `.orchestra/pilot.md`.
+> Start with `orchestra/pilot.md`. Use `orchestra/.guide.md` for durable repo context.
 
 # AGENTS.md — `{{ codebase_name }}`
 
@@ -17,7 +17,7 @@
 ## Project
 
 - **Name:** `{{ codebase_name }}`
-- **Root:** `{{ codebase_path }}`
+- **Guide:** `orchestra/.guide.md`
 - **Active tasks:** {{ active_task_count }}
 
 ## Stack
@@ -47,11 +47,4 @@ When in doubt about where code belongs, ask rather than guessing.
 
 {% include "shared/_worktree_instructions.tera" %}
 
-## Tasks
-{% for task in tasks %}
-### {{ task.id }} — {{ task.title }}
-
-- **Status:** `{{ task.status }}`
-{% if task.description %}- **Description:** {{ task.description }}
-{% endif %}
-{% endfor %}{% if not tasks %}No tasks currently registered.{% endif %}
+{% include "shared/_tasks.tera" %}

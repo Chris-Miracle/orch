@@ -96,6 +96,8 @@ pub fn scan_agent_files(path: &Path) -> Result<Vec<AgentFileHit>, DetectError> {
     let mut hits = Vec::new();
 
     let known_paths: &[(&str, &str, bool)] = &[
+        // Shared agent-control libraries
+        ("orchestra", "AGENT", true),
         // Claude
         ("claude", "CLAUDE.md", false),
         ("claude", ".claude/CLAUDE.md", false),

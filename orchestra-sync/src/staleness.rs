@@ -19,6 +19,7 @@ use orchestra_core::{
     registry,
     types::{Codebase, ProjectName},
 };
+use orchestra_renderer::engine::{guide_path, pilot_path};
 use orchestra_renderer::AgentKind;
 
 use crate::{error::io_err, hash_store, SyncError};
@@ -154,7 +155,8 @@ fn managed_paths(codebase: &Codebase) -> Vec<PathBuf> {
     for agent in AgentKind::all() {
         paths.extend(agent.output_paths(&codebase.path));
     }
-    paths.push(codebase.path.join(".orchestra").join("pilot.md"));
+    paths.push(guide_path(&codebase.path));
+    paths.push(pilot_path(&codebase.path));
     paths
 }
 
@@ -314,13 +316,13 @@ mod tests {
     #[test]
     fn returns_modified_when_managed_file_is_edited() {
         let (home, _workspace, _name, project, codebase) = setup_codebase();
-        let target = codebase.path.join("CLAUDE.md");
+        let target = codebase.path.join("orchestra/controls/CLAUDE.md");
         fs::write(&target, "manually edited\n").expect("edit");
 
         let signal = check(home.path(), &project, &codebase).expect("check");
         match signal {
             StalenessSignal::Modified { files } => {
-                assert!(files.iter().any(|p| p == &PathBuf::from("CLAUDE.md")));
+                assert!(files.iter().any(|p| p == &PathBuf::from("orchestra/controls/CLAUDE.md")));
             }
             other => panic!("expected modified, got {other:?}"),
         }
@@ -333,7 +335,7 @@ mod tests {
         store.files.remove(
             &codebase
                 .path
-                .join("CLAUDE.md")
+                .join("orchestra/controls/CLAUDE.md")
                 .to_string_lossy()
                 .to_string(),
         );
@@ -342,7 +344,7 @@ mod tests {
         let signal = check(home.path(), &project, &codebase).expect("check");
         match signal {
             StalenessSignal::Orphan { files } => {
-                assert!(files.iter().any(|p| p == &PathBuf::from("CLAUDE.md")));
+                assert!(files.iter().any(|p| p == &PathBuf::from("orchestra/controls/CLAUDE.md")));
             }
             other => panic!("expected orphan, got {other:?}"),
         }
@@ -360,14 +362,14 @@ mod tests {
     #[test]
     fn stale_on_missing_managed_file() {
         let (home, _workspace, _name, project, codebase) = setup_codebase();
-        let target = codebase.path.join("CLAUDE.md");
+        let target = codebase.path.join("orchestra/controls/CLAUDE.md");
         fs::remove_file(&target).expect("remove");
 
         let signal = check(home.path(), &project, &codebase).expect("check");
         match signal {
             StalenessSignal::Stale { reason } => {
                 assert!(reason.contains("missing"));
-                assert!(reason.contains("CLAUDE.md"));
+                assert!(reason.contains("orchestra/controls/CLAUDE.md"));
             }
             other => panic!("expected stale, got {other:?}"),
         }

@@ -2,6 +2,8 @@
 
 use std::path::PathBuf;
 
+use orchestra_core::types::TaskStatus;
+
 // ---------------------------------------------------------------------------
 // Command enum
 // ---------------------------------------------------------------------------
@@ -36,6 +38,15 @@ pub enum WritebackCommand {
     FileDeleted { path: PathBuf },
 }
 
+/// A parsed task row from the canonical Orchestra task block.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskSnapshot {
+    pub task_id: String,
+    pub title: String,
+    pub status: TaskStatus,
+    pub description: Option<String>,
+}
+
 // ---------------------------------------------------------------------------
 // Parse types
 // ---------------------------------------------------------------------------
@@ -67,6 +78,13 @@ impl std::fmt::Display for ParseError {
 #[derive(Debug)]
 pub struct ParseResult {
     pub commands: Vec<WritebackCommand>,
+    pub errors: Vec<ParseError>,
+}
+
+/// Result of parsing the canonical task block.
+#[derive(Debug)]
+pub struct TaskParseResult {
+    pub tasks: Vec<TaskSnapshot>,
     pub errors: Vec<ParseError>,
 }
 

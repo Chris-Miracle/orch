@@ -6,7 +6,7 @@
 
 # Orchestra Rules — {{ codebase_name }}
 
-Always consult `.orchestra/pilot.md` first for workflow, task state, and sync behavior.
+Always consult `orchestra/pilot.md` first for workflow, task state, and sync behavior.
 
 ## Core Rules
 - Keep edits minimal and task-focused.

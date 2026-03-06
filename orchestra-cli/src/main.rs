@@ -23,8 +23,8 @@ use clap::{Parser, Subcommand};
 
 use commands::{
     daemon::DaemonCommand, doctor::DoctorArgs, diff::DiffArgs, init::InitArgs,
-    onboard::OnboardArgs, project::ProjectCommand, status::StatusArgs, sync::SyncArgs,
-    update::UpdateArgs,
+    offboard::OffboardArgs, onboard::OnboardArgs, project::ProjectCommand, reset::ResetArgs,
+    status::StatusArgs, sync::SyncArgs, update::UpdateArgs,
 };
 use orchestra_core::types::ProjectType;
 
@@ -35,6 +35,7 @@ All available commands:
     project add
     sync
     onboard
+    offboard
     status
     diff
     doctor
@@ -45,6 +46,7 @@ All available commands:
     daemon uninstall
     daemon logs
     update
+    reset
 ";
 
 // ---------------------------------------------------------------------------
@@ -81,6 +83,9 @@ enum Commands {
     /// Onboard a codebase and bootstrap managed agent files.
     Onboard(OnboardArgs),
 
+    /// Restore pre-onboard state and deregister a codebase.
+    Offboard(OffboardArgs),
+
     /// Show staleness status across registered codebases.
     Status(StatusArgs),
 
@@ -98,6 +103,9 @@ enum Commands {
 
     /// Auto-upgrade Orchestra. Use --stable or --beta to switch channels.
     Update(UpdateArgs),
+
+    /// Wipe Orchestra and all its managed files (requires --confirm).
+    Reset(ResetArgs),
 }
 
 // ---------------------------------------------------------------------------
@@ -147,10 +155,12 @@ fn main() -> Result<()> {
         Commands::Project { command } => commands::project::run(command),
         Commands::Sync(args) => args.run(),
         Commands::Onboard(args) => args.run(),
+        Commands::Offboard(args) => args.run(),
         Commands::Status(args) => args.run(),
         Commands::Diff(args) => args.run(),
         Commands::Daemon { command } => commands::daemon::run(command),
         Commands::Doctor(args) => args.run(),
         Commands::Update(args) => commands::update::run(args),
+        Commands::Reset(args) => args.run(),
     }
 }

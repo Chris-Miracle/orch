@@ -2,15 +2,15 @@
 //!
 //! # Path mapping (official docs)
 //!
-//! | Agent       | Output path(s)                                               |
+//! | Agent       | Output path(s) under `./orchestra/controls/`                 |
 //! |-------------|--------------------------------------------------------------|
-//! | Claude      | `CLAUDE.md`                                                  |
+//! | Claude      | `CLAUDE.md`, `.claude/rules/orchestra.md`, `.claude/agents/...` |
 //! | Cursor      | `.cursor/rules/orchestra.mdc`, `.cursor/skills/orchestra-sync/skill.md` |
 //! | Windsurf    | `.windsurf/rules/orchestra.md`, `.windsurf/skills/orchestra-sync/skill.md` |
-//! | Copilot     | `.github/copilot-instructions.md`                            |
+//! | Copilot     | `.github/copilot-instructions.md`, `.github/instructions/orchestra.instructions.md` |
 //! | Codex       | `AGENTS.md`, `.codex/skills/orchestra-sync/skill.md`        |
 //! | Gemini      | `GEMINI.md`, `.gemini/settings.json`, `.gemini/styleguide.md`, `.gemini/skills/orchestra-sync/skill.md`|
-//! | Cline       | `.clinerules/orchestra.md`                                   |
+//! | Cline       | `.clinerules/orchestra.md`, `.agents/skills/orchestra-sync/skill.md` |
 //! | Antigravity | `.agent/rules/orchestra.md`, `.agent/skills/orchestra-sync/skill.md` |
 
 use std::collections::HashMap;
@@ -120,6 +120,10 @@ const TPLS: &[(&str, &str)] = &[
         "pilot/pilot.md.tera",
         include_str!("templates/pilot.md.tera"),
     ),
+    (
+        "guide/guide.md.tera",
+        include_str!("templates/guide.md.tera"),
+    ),
 ];
 
 // ---------------------------------------------------------------------------
@@ -209,6 +213,37 @@ pub enum AgentKind {
     Antigravity,
 }
 
+pub const PROJECT_ORCHESTRA_DIR: &str = "orchestra";
+pub const LEGACY_PROJECT_ORCHESTRA_DIR: &str = ".orchestra";
+pub const CONTROL_DIR_NAME: &str = "controls";
+pub const BACKUP_DIR_NAME: &str = "backup";
+pub const PILOT_FILE_NAME: &str = "pilot.md";
+pub const GUIDE_FILE_NAME: &str = ".guide.md";
+
+pub fn orchestra_dir(codebase_root: &Path) -> PathBuf {
+    codebase_root.join(PROJECT_ORCHESTRA_DIR)
+}
+
+pub fn control_dir(codebase_root: &Path) -> PathBuf {
+    orchestra_dir(codebase_root).join(CONTROL_DIR_NAME)
+}
+
+pub fn backup_dir(codebase_root: &Path) -> PathBuf {
+    orchestra_dir(codebase_root).join(BACKUP_DIR_NAME)
+}
+
+pub fn pilot_path(codebase_root: &Path) -> PathBuf {
+    orchestra_dir(codebase_root).join(PILOT_FILE_NAME)
+}
+
+pub fn guide_path(codebase_root: &Path) -> PathBuf {
+    orchestra_dir(codebase_root).join(GUIDE_FILE_NAME)
+}
+
+pub fn legacy_orchestra_dirs(codebase_root: &Path) -> Vec<PathBuf> {
+    vec![codebase_root.join(LEGACY_PROJECT_ORCHESTRA_DIR)]
+}
+
 impl AgentKind {
     /// All agent variants in a stable order.
     pub fn all() -> &'static [AgentKind] {
@@ -266,10 +301,10 @@ impl AgentKind {
         }
     }
 
-    /// Official output paths for this agent, relative to the codebase root.
+    /// Managed output paths for this agent, relative to the codebase root.
     /// Returns one `PathBuf` per template (same order as `template_names`).
     pub fn output_paths(&self, codebase_root: &Path) -> Vec<PathBuf> {
-        let root = codebase_root;
+        let root = control_dir(codebase_root);
         match self {
             AgentKind::Claude => vec![
                 root.join("CLAUDE.md"),
@@ -341,6 +376,199 @@ impl AgentKind {
                     .join("skill.md"),
             ],
         }
+    }
+
+    /// Legacy output paths used before Orchestra moved managed files under
+    /// `./orchestra/controls/`. These remain for cleanup and migration.
+    pub fn legacy_output_paths(&self, codebase_root: &Path) -> Vec<PathBuf> {
+        let root = codebase_root;
+        let hidden_legacy_controls = codebase_root
+            .join(LEGACY_PROJECT_ORCHESTRA_DIR)
+            .join("controls");
+        let visible_legacy_controls = codebase_root
+            .join(PROJECT_ORCHESTRA_DIR)
+            .join("control");
+
+        let mut paths = match self {
+            AgentKind::Claude => vec![
+                root.join("CLAUDE.md"),
+                hidden_legacy_controls.join("CLAUDE.md"),
+                visible_legacy_controls.join("CLAUDE.md"),
+                root.join(".claude").join("rules").join("orchestra.md"),
+                hidden_legacy_controls.join(".claude").join("rules").join("orchestra.md"),
+                visible_legacy_controls.join(".claude").join("rules").join("orchestra.md"),
+                root
+                    .join(".claude")
+                    .join("agents")
+                    .join("orchestra-worker.md"),
+                hidden_legacy_controls
+                    .join(".claude")
+                    .join("agents")
+                    .join("orchestra-worker.md"),
+                visible_legacy_controls
+                    .join(".claude")
+                    .join("agents")
+                    .join("orchestra-worker.md"),
+                root
+                    .join(".claude")
+                    .join("agents")
+                    .join("orchestra-reviewer.md"),
+                hidden_legacy_controls
+                    .join(".claude")
+                    .join("agents")
+                    .join("orchestra-reviewer.md"),
+                visible_legacy_controls
+                    .join(".claude")
+                    .join("agents")
+                    .join("orchestra-reviewer.md"),
+            ],
+            AgentKind::Cursor => vec![
+                root.join(".cursor").join("rules").join("orchestra.mdc"),
+                hidden_legacy_controls.join(".cursor").join("rules").join("orchestra.mdc"),
+                visible_legacy_controls.join(".cursor").join("rules").join("orchestra.mdc"),
+                root
+                    .join(".cursor")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+                hidden_legacy_controls
+                    .join(".cursor")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+                visible_legacy_controls
+                    .join(".cursor")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+            ],
+            AgentKind::Windsurf => vec![
+                root.join(".windsurf").join("rules").join("orchestra.md"),
+                hidden_legacy_controls.join(".windsurf").join("rules").join("orchestra.md"),
+                visible_legacy_controls.join(".windsurf").join("rules").join("orchestra.md"),
+                root
+                    .join(".windsurf")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+                hidden_legacy_controls
+                    .join(".windsurf")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+                visible_legacy_controls
+                    .join(".windsurf")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+            ],
+            AgentKind::Copilot => vec![
+                root.join(".github").join("copilot-instructions.md"),
+                hidden_legacy_controls.join(".github").join("copilot-instructions.md"),
+                visible_legacy_controls.join(".github").join("copilot-instructions.md"),
+                root
+                    .join(".github")
+                    .join("instructions")
+                    .join("orchestra.instructions.md"),
+                hidden_legacy_controls
+                    .join(".github")
+                    .join("instructions")
+                    .join("orchestra.instructions.md"),
+                visible_legacy_controls
+                    .join(".github")
+                    .join("instructions")
+                    .join("orchestra.instructions.md"),
+            ],
+            AgentKind::Codex => vec![
+                root.join("AGENTS.md"),
+                hidden_legacy_controls.join("AGENTS.md"),
+                visible_legacy_controls.join("AGENTS.md"),
+                root
+                    .join(".codex")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+                hidden_legacy_controls
+                    .join(".codex")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+                visible_legacy_controls
+                    .join(".codex")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+            ],
+            AgentKind::Gemini => vec![
+                root.join("GEMINI.md"),
+                hidden_legacy_controls.join("GEMINI.md"),
+                visible_legacy_controls.join("GEMINI.md"),
+                root.join(".gemini").join("settings.json"),
+                hidden_legacy_controls.join(".gemini").join("settings.json"),
+                visible_legacy_controls.join(".gemini").join("settings.json"),
+                root.join(".gemini").join("styleguide.md"),
+                hidden_legacy_controls.join(".gemini").join("styleguide.md"),
+                visible_legacy_controls.join(".gemini").join("styleguide.md"),
+                root
+                    .join(".gemini")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+                hidden_legacy_controls
+                    .join(".gemini")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+                visible_legacy_controls
+                    .join(".gemini")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+            ],
+            AgentKind::Cline => vec![
+                root.join(".clinerules").join("orchestra.md"),
+                hidden_legacy_controls.join(".clinerules").join("orchestra.md"),
+                visible_legacy_controls.join(".clinerules").join("orchestra.md"),
+                root
+                    .join(".agents")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+                hidden_legacy_controls
+                    .join(".agents")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+                visible_legacy_controls
+                    .join(".agents")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+            ],
+            AgentKind::Antigravity => vec![
+                root.join(".agent").join("rules").join("orchestra.md"),
+                hidden_legacy_controls.join(".agent").join("rules").join("orchestra.md"),
+                visible_legacy_controls.join(".agent").join("rules").join("orchestra.md"),
+                root
+                    .join(".agent")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+                hidden_legacy_controls
+                    .join(".agent")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+                visible_legacy_controls
+                    .join(".agent")
+                    .join("skills")
+                    .join("orchestra-sync")
+                    .join("skill.md"),
+            ],
+        };
+        paths.sort();
+        paths.dedup();
+        paths
     }
 }
 
@@ -435,7 +663,15 @@ impl Renderer {
     pub fn render_pilot(&self, ctx: &TemplateContext) -> Result<(PathBuf, String), RenderError> {
         let tera_ctx = ctx.to_tera_context()?;
         let content = self.engine.tera.render("pilot/pilot.md.tera", &tera_ctx)?;
-        let path = Path::new(&ctx.codebase_path).join(".orchestra").join("pilot.md");
+        let path = pilot_path(Path::new(&ctx.codebase_path));
+        Ok((path, content))
+    }
+
+    /// Render Orchestra hidden context guide.
+    pub fn render_guide(&self, ctx: &TemplateContext) -> Result<(PathBuf, String), RenderError> {
+        let tera_ctx = ctx.to_tera_context()?;
+        let content = self.engine.tera.render("guide/guide.md.tera", &tera_ctx)?;
+        let path = guide_path(Path::new(&ctx.codebase_path));
         Ok((path, content))
     }
 }
@@ -586,14 +822,30 @@ mod tests {
     fn claude_output_path_is_correct() {
         let root = PathBuf::from("/code/myapp");
         let paths = AgentKind::Claude.output_paths(&root);
-        assert_eq!(paths[0], PathBuf::from("/code/myapp/CLAUDE.md"));
+        assert_eq!(paths[0], PathBuf::from("/code/myapp/orchestra/controls/CLAUDE.md"));
     }
 
     #[test]
     fn copilot_output_path_is_correct() {
         let root = PathBuf::from("/code/myapp");
         let paths = AgentKind::Copilot.output_paths(&root);
-        assert_eq!(paths[0], PathBuf::from("/code/myapp/.github/copilot-instructions.md"));
+        assert_eq!(
+            paths[0],
+            PathBuf::from("/code/myapp/orchestra/controls/.github/copilot-instructions.md")
+        );
+    }
+
+    #[test]
+    fn legacy_output_paths_remain_available_for_cleanup() {
+        let root = PathBuf::from("/code/myapp");
+        let paths = AgentKind::Claude.legacy_output_paths(&root);
+        assert!(paths.contains(&PathBuf::from("/code/myapp/CLAUDE.md")));
+        assert!(paths.contains(&PathBuf::from(
+            "/code/myapp/.orchestra/controls/CLAUDE.md"
+        )));
+        assert!(paths.contains(&PathBuf::from(
+            "/code/myapp/orchestra/control/CLAUDE.md"
+        )));
     }
 
     #[test]

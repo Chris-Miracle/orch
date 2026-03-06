@@ -7,13 +7,14 @@
 #}
 {% include "shared/_header.tera" %}
 
-> Primary workflow context lives in `.orchestra/pilot.md`.
+> Start with `orchestra/pilot.md`. Use `orchestra/.guide.md` for durable repo context.
 
 # Copilot Instructions — `{{ codebase_name }}`
 
 ## Project Overview
 
-This repository is **`{{ codebase_name }}`** located at `{{ codebase_path }}`.
+This repository is **`{{ codebase_name }}`**.
+Persistent background context lives in `orchestra/.guide.md`.
 {% if projects %}The codebase contains the following projects:
 {% for project in projects %}
 - **{{ project.name }}** (`{{ project.project_type }}`)
@@ -47,8 +48,4 @@ This repository is **`{{ codebase_name }}`** located at `{{ codebase_path }}`.
 
 {% include "shared/_worktree_instructions.tera" %}
 
-## Active Tasks ({{ active_task_count }})
-{% for task in tasks %}
-- **{{ task.id }}** [{{ task.status }}] — {{ task.title }}{% if task.description %}
-  {{ task.description }}{% endif %}
-{% endfor %}{% if not tasks %}No tasks currently registered.{% endif %}
+{% include "shared/_tasks.tera" %}

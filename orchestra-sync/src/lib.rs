@@ -20,8 +20,10 @@ pub use pipeline::SyncScope;
 pub use staleness::StalenessSignal;
 pub use backup::{
 	backup_agent_files,
+	load_backup_manifest,
 	remove_agent_files,
 	remove_agent_files_protected,
+	restore_from_backup,
 	BackupItem,
 	BackupManifest,
 };

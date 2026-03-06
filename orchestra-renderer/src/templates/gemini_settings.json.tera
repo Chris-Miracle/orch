@@ -6,10 +6,12 @@
 #}
 {
   "codebase": "{{ codebase_name }}",
-  "root": "{{ codebase_path }}",
+  "root": ".",
   "projects": {{ projects | json_encode(pretty=false) }},
   "context": {
     "active_task_count": {{ active_task_count }},
-    "managed_by": "orchestra"
+    "managed_by": "orchestra",
+    "direction_file": "orchestra/pilot.md",
+    "context_file": "orchestra/.guide.md"
   }
 }
