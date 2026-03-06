@@ -9,7 +9,7 @@ Orchestra is a native CLI binary — no pip, no npm, no Node, no Python needed.
 ### Option 1 — curl installer (no Rust required) ⭐
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chris-miracle/orch/main/install.sh | sh
+curl -fsSL <raw-install-script-url> | sh
 ```
 
 Downloads the pre-built binary for your platform (macOS arm64/x86_64, Linux x86_64) and installs it to `~/.local/bin`. That's it.
@@ -17,7 +17,7 @@ Downloads the pre-built binary for your platform (macOS arm64/x86_64, Linux x86_
 ### Option 2 — if you have Rust installed
 
 ```bash
-cargo install --git https://github.com/chris-miracle/orch --bin orchestra
+cargo install --git <repository-url> --bin orchestra
 ```
 
 No cloning needed. Cargo fetches, compiles, and drops `orchestra` on your PATH.
@@ -25,8 +25,8 @@ No cloning needed. Cargo fetches, compiles, and drops `orchestra` on your PATH.
 ### Option 3 — build from source
 
 ```bash
-git clone https://github.com/chris-miracle/orch.git
-cd orch
+git clone <repository-url>
+cd <repo-name>
 cargo install --path orchestra-cli
 ```
 
@@ -122,13 +122,13 @@ _Per-agent file rendering, hash store, atomic writes._
 **Sync one registered codebase:**
 
 ```bash
-orchestra sync copnow_api
+orchestra sync atlas_api
 ```
 
 **Preview without writing files:**
 
 ```bash
-orchestra sync copnow_api --dry-run
+orchestra sync atlas_api --dry-run
 ```
 
 **Sync all registered codebases:**
@@ -180,7 +180,7 @@ orchestra status
 **Filter by project:**
 
 ```bash
-orchestra status --project copnow
+orchestra status --project atlas
 ```
 
 **Get JSON for scripts/CI:**
@@ -192,7 +192,7 @@ orchestra status --json
 **Preview changes before syncing:**
 
 ```bash
-orchestra diff copnow_api
+orchestra diff atlas_api
 ```
 
 **Refresh stale/modified codebases:**

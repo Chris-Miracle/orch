@@ -6,7 +6,7 @@ applyTo: "**"
 
 Codebase: `{{ codebase_name }}`
 
-Use `.orchestra/pilot.md` as the canonical workflow entrypoint before coding.
+Use `orchestra/pilot.md` as the canonical workflow entrypoint before coding.
 
 - Continue from active Orchestra tasks when present.
 - Follow repository conventions and skills from generated instructions.

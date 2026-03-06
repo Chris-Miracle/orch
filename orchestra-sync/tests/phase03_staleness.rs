@@ -75,15 +75,15 @@ fn modified_when_hash_mismatch_detected() {
     let project = ProjectName::from("copnow");
     let codebase = init_codebase(&home, &workspace, &project, "copnow_api", true);
 
-    let claude = codebase.path.join("CLAUDE.md");
+    let claude = codebase.path.join("orchestra/controls/CLAUDE.md");
     fs::write(&claude, "manually changed content\n").expect("edit CLAUDE.md");
 
     let signal = check(home.path(), &project, &codebase).expect("check");
     match signal {
         StalenessSignal::Modified { files } => {
             assert!(
-                files.contains(&PathBuf::from("CLAUDE.md")),
-                "modified set should include CLAUDE.md"
+                files.contains(&PathBuf::from("orchestra/controls/CLAUDE.md")),
+                "modified set should include orchestra/controls/CLAUDE.md"
             );
         }
         other => panic!("expected modified, got {other:?}"),

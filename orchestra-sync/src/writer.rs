@@ -80,7 +80,7 @@ fn atomic_write_with_tmp(
     // Step 4: compare with stored hash.
     let key = path.to_string_lossy().to_string();
     if let Some(stored) = hash_store.get(&key) {
-        if stored == &digest {
+        if stored == &digest && disk_content_matches_digest(path, &digest)? {
             tracing::debug!("unchanged: {}", path.display());
             return Ok(WriteResult::Unchanged {
                 path: path.to_path_buf(),
@@ -118,6 +118,16 @@ fn atomic_write_with_tmp(
     Ok(WriteResult::Written {
         path: path.to_path_buf(),
     })
+}
+
+fn disk_content_matches_digest(path: &Path, expected_digest: &str) -> Result<bool, SyncError> {
+    let Ok(existing) = std::fs::read_to_string(path) else {
+        return Ok(false);
+    };
+    let normalized = existing.replace("\r\n", "\n");
+    let mut hasher = Sha256::new();
+    hasher.update(normalized.as_bytes());
+    Ok(hex::encode(hasher.finalize()) == expected_digest)
 }
 
 // ---------------------------------------------------------------------------
@@ -191,6 +201,10 @@ pub fn sync_codebase(
             writes.push(result);
         }
     }
+
+    let (guide_path, guide_content) = renderer.render_guide(&ctx)?;
+    let guide_result = atomic_write(&guide_path, &guide_content, &mut store.files, dry_run)?;
+    writes.push(guide_result);
 
     let (pilot_path, pilot_content) = renderer.render_pilot(&ctx)?;
     let pilot_result = atomic_write(&pilot_path, &pilot_content, &mut store.files, dry_run)?;
@@ -299,6 +313,20 @@ mod tests {
     }
 
     #[test]
+    fn rewrites_drifted_file_even_when_hash_store_matches_target_content() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("file.md");
+        let mut store = HashMap::new();
+
+        atomic_write(&path, "expected\n", &mut store, false).unwrap();
+        fs::write(&path, "manual drift\n").unwrap();
+
+        let result = atomic_write(&path, "expected\n", &mut store, false).unwrap();
+        assert!(matches!(result, WriteResult::Written { .. }));
+        assert_eq!(fs::read_to_string(&path).unwrap(), "expected\n");
+    }
+
+    #[test]
     fn dry_run_does_not_write_file() {
         let tmp = TempDir::new().unwrap();
         let path = tmp.path().join("nope.md");
@@ -346,7 +374,7 @@ mod tests {
 
         sync_codebase("copnow_api", home.path(), false).expect("first sync");
 
-        let target = codebase_dir.join("CLAUDE.md");
+        let target = codebase_dir.join("orchestra/controls/CLAUDE.md");
         let mtime_1 = fs::metadata(&target).unwrap().modified().unwrap();
         let store_1 = hash_store::load_at(home.path(), "copnow_api").unwrap();
         let key = target.to_string_lossy().to_string();

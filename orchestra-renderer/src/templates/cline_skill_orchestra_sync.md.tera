@@ -3,7 +3,7 @@
 Codebase: `{{ codebase_name }}`
 
 This skill ensures Cline workflows stay aligned with Orchestra-managed context.
-Always read `.orchestra/pilot.md` first.
+Always read `orchestra/pilot.md` first.
 
 ## Use this skill when
 - continuing existing tasks

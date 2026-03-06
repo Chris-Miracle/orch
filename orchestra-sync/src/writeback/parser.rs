@@ -16,10 +16,14 @@
 
 use std::path::PathBuf;
 
-use crate::writeback::types::{ParseError, ParseResult, WritebackCommand};
+use orchestra_core::types::TaskStatus;
+
+use crate::writeback::types::{ParseError, ParseResult, TaskParseResult, TaskSnapshot, WritebackCommand};
 
 const UPDATE_OPEN: &str = "<!-- orchestra:update -->";
 const UPDATE_CLOSE: &str = "<!-- /orchestra:update -->";
+const TASKS_OPEN: &str = "<!-- orchestra:tasks -->";
+const TASKS_CLOSE: &str = "<!-- /orchestra:tasks -->";
 const EDGE_LINE_WINDOW: usize = 20;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,10 +47,30 @@ pub fn has_update_block(content: &str) -> bool {
     find_update_block(content).is_some()
 }
 
+pub fn has_task_block(content: &str) -> bool {
+    find_task_block(content).is_some()
+}
+
 pub fn find_update_block(content: &str) -> Option<UpdateBlock<'_>> {
     let start = content.find(UPDATE_OPEN)?;
     let after_open = start + UPDATE_OPEN.len();
     let close_rel = content[after_open..].find(UPDATE_CLOSE)?;
+    let end = after_open + close_rel;
+
+    let start_line = content[..start].bytes().filter(|b| *b == b'\n').count() + 1;
+    let end_line = content[..end].bytes().filter(|b| *b == b'\n').count() + 1;
+
+    Some(UpdateBlock {
+        content: &content[after_open..end],
+        start_line,
+        end_line,
+    })
+}
+
+pub fn find_task_block(content: &str) -> Option<UpdateBlock<'_>> {
+    let start = content.find(TASKS_OPEN)?;
+    let after_open = start + TASKS_OPEN.len();
+    let close_rel = content[after_open..].find(TASKS_CLOSE)?;
     let end = after_open + close_rel;
 
     let start_line = content[..start].bytes().filter(|b| *b == b'\n').count() + 1;
@@ -80,6 +104,95 @@ pub fn parse_block(block_content: &str) -> ParseResult {
     }
 
     ParseResult { commands, errors }
+}
+
+pub fn parse_task_block(block_content: &str) -> TaskParseResult {
+    let mut tasks = Vec::new();
+    let mut errors = Vec::new();
+    let mut seen_ids = std::collections::BTreeSet::new();
+
+    for (line_idx, raw_line) in block_content.lines().enumerate() {
+        let line = raw_line.trim();
+        if line.is_empty()
+            || line.starts_with("<!--")
+            || line.starts_with("|---")
+            || line.eq_ignore_ascii_case("| id | title | status | description |")
+            || !line.starts_with('|')
+        {
+            continue;
+        }
+
+        match parse_task_line(line) {
+            Ok(task) => {
+                if !seen_ids.insert(task.task_id.clone()) {
+                    errors.push(ParseError {
+                        line_number: line_idx + 1,
+                        raw_line: raw_line.to_owned(),
+                        message: format!("duplicate task id '{}' in orchestra:tasks block", task.task_id),
+                    });
+                    continue;
+                }
+                tasks.push(task);
+            }
+            Err(message) => errors.push(ParseError {
+                line_number: line_idx + 1,
+                raw_line: raw_line.to_owned(),
+                message,
+            }),
+        }
+    }
+
+    TaskParseResult { tasks, errors }
+}
+
+fn parse_task_line(line: &str) -> Result<TaskSnapshot, String> {
+    let cells: Vec<String> = line
+        .trim_matches('|')
+        .split('|')
+        .map(|cell| cell.trim().to_string())
+        .collect();
+
+    if cells.len() < 3 {
+        return Err("task rows require at least '| ID | Title | Status |'".to_owned());
+    }
+
+    let task_id = cells[0].trim();
+    let title = cells[1].trim();
+    let status_raw = cells[2].trim();
+    let description = cells
+        .get(3)
+        .map(|cell| cell.trim())
+        .filter(|cell| !cell.is_empty() && *cell != "-" && !cell.eq_ignore_ascii_case("none"))
+        .map(|cell| cell.to_string());
+
+    if task_id.is_empty() {
+        return Err("task id must not be empty".to_owned());
+    }
+    if title.is_empty() {
+        return Err("task title must not be empty".to_owned());
+    }
+
+    let status = parse_task_status(status_raw)?;
+    Ok(TaskSnapshot {
+        task_id: task_id.to_owned(),
+        title: title.to_owned(),
+        status,
+        description,
+    })
+}
+
+fn parse_task_status(value: &str) -> Result<TaskStatus, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "pending" | "todo" | "open" => Ok(TaskStatus::Pending),
+        "in_progress" | "in-progress" | "in progress" | "active" | "doing" => {
+            Ok(TaskStatus::InProgress)
+        }
+        "blocked" => Ok(TaskStatus::Blocked),
+        "done" | "complete" | "completed" => Ok(TaskStatus::Done),
+        other => Err(format!(
+            "unknown task status '{other}'. Supported: pending, in_progress, blocked, done"
+        )),
+    }
 }
 
 fn parse_line(line: &str) -> Result<WritebackCommand, String> {
@@ -276,5 +389,39 @@ mod tests {
         assert_eq!(result.commands.len(), 0);
         assert_eq!(result.errors.len(), 1);
         assert!(result.errors[0].message.contains("<task-id>/<subtask-title>"));
+    }
+
+    #[test]
+    fn parse_task_block_reads_table_rows() {
+        let block = [
+            "| ID | Title | Status | Description |",
+            "|---|---|---|---|",
+            "| T-1 | Ship onboarding | pending | polish prompt |",
+            "| T-2 | Review writeback | in_progress | - |",
+        ]
+        .join("\n");
+
+        let result = parse_task_block(&block);
+        assert!(result.errors.is_empty());
+        assert_eq!(result.tasks.len(), 2);
+        assert_eq!(result.tasks[0].task_id, "T-1");
+        assert_eq!(result.tasks[1].status, TaskStatus::InProgress);
+        assert_eq!(result.tasks[0].description.as_deref(), Some("polish prompt"));
+    }
+
+    #[test]
+    fn parse_task_block_rejects_duplicate_ids() {
+        let block = [
+            "| ID | Title | Status | Description |",
+            "|---|---|---|---|",
+            "| T-1 | First | pending | - |",
+            "| T-1 | Duplicate | blocked | - |",
+        ]
+        .join("\n");
+
+        let result = parse_task_block(&block);
+        assert_eq!(result.tasks.len(), 1);
+        assert_eq!(result.errors.len(), 1);
+        assert!(result.errors[0].message.contains("duplicate task id"));
     }
 }

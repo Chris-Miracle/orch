@@ -1,0 +1,47 @@
+{% include "shared/_header.tera" %}
+
+# Orchestra Guide — {{ codebase_name }}
+
+This hidden file is the durable background-context document for this codebase.
+Read `orchestra/pilot.md` first for direction and operating rules. Use this file
+for repo context, preserved conventions, imported guidance, and active work state.
+
+## Identity
+- Codebase: `{{ codebase_name }}`
+- Managed by: Orchestra
+- Control plane: `orchestra/controls/`
+- Primary entrypoint: `orchestra/pilot.md`
+
+{% include "shared/_stack.tera" %}
+
+## Commands
+- `{{ commands.sync }}`
+- `{{ commands.sync_dry_run }}`
+- `orchestra status`
+- `orchestra diff {{ codebase_name }}`
+- `orchestra doctor`
+
+## Task Sync
+- The `<!-- orchestra:tasks -->` block rendered in managed provider files is the canonical editable task surface.
+- Edit that block in any managed file to create or update tasks.
+- Orchestra writes those changes back into the registry and re-renders the same task state across the other provider files.
+- Use status `done` to close work instead of deleting rows.
+
+## Conventions
+{% if conventions %}{% for convention in conventions %}- {{ convention }}
+{% endfor %}{% else %}- No additional conventions recorded.
+{% endif %}
+
+## Notes
+{% if notes %}{% for note in notes %}- {{ note }}
+{% endfor %}{% else %}- No additional notes recorded.
+{% endif %}
+
+{% include "shared/_skills.tera" %}
+
+{% include "shared/_tasks.tera" %}
+
+{% include "shared/_subagent_delegation.tera" %}
+
+## Final Rule
+Use `orchestra/pilot.md` for direction. Use this file for durable context.

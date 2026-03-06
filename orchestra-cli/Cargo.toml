@@ -12,6 +12,7 @@ path = "src/main.rs"
 clap = { version = "4", features = ["derive"] }
 anyhow = "1"
 orchestra-core = { path = "../orchestra-core" }
+orchestra-renderer = { path = "../orchestra-renderer" }
 orchestra-sync = { path = "../orchestra-sync" }
 orchestra-daemon = { path = "../orchestra-daemon" }
 orchestra-detector = { path = "../orchestra-detector" }
@@ -21,10 +22,10 @@ tabled = "0.14"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ureq = { version = "2", features = ["json"] }
+chrono = { version = "0.4", features = ["serde"] }
 
 [dev-dependencies]
 tempfile = "3"
 assert_cmd = "2"
 predicates = "3"
 tokio-test = "0.4"
-chrono = { version = "0.4", features = ["serde"] }

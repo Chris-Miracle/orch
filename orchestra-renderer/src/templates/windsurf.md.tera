@@ -7,7 +7,7 @@
 {% include "shared/_header.tera" %}
 
 # {{ codebase_name }} — Windsurf Rules
-> Primary workflow context lives in `.orchestra/pilot.md`.
+> Start with `orchestra/pilot.md`. Use `orchestra/.guide.md` for durable repo context.
 
 ## Project Context
 
@@ -29,8 +29,4 @@
 
 {% include "shared/_worktree_instructions.tera" %}
 
-## Active Tasks ({{ active_task_count }})
-{% for task in tasks %}- [{{ task.status }}] {{ task.id }}: {{ task.title }}{% if task.description %}
-  > {{ task.description }}{% endif %}
-{% endfor %}{% if not tasks %}- None.
-{% endif %}
+{% include "shared/_tasks.tera" %}

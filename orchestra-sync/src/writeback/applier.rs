@@ -1,9 +1,9 @@
 //! Applier — applies parsed [`WritebackCommand`]s to a [`Codebase`] struct.
 
 use chrono::Utc;
-use orchestra_core::types::{Codebase, Skill, TaskStatus};
+use orchestra_core::types::{Codebase, Project, ProjectName, ProjectType, Skill, Task, TaskId, TaskStatus};
 
-use crate::writeback::types::{ApplyOutcome, ApplyResult, WritebackCommand};
+use crate::writeback::types::{ApplyOutcome, ApplyResult, TaskSnapshot, WritebackCommand};
 
 pub fn apply(codebase: &mut Codebase, commands: &[WritebackCommand]) -> Vec<ApplyResult> {
     let mut results = Vec::with_capacity(commands.len());
@@ -24,6 +24,56 @@ pub fn apply(codebase: &mut Codebase, commands: &[WritebackCommand]) -> Vec<Appl
     }
 
     results
+}
+
+pub fn reconcile_task_snapshot(codebase: &mut Codebase, tasks: &[TaskSnapshot]) -> bool {
+    if tasks.is_empty() {
+        return false;
+    }
+
+    ensure_default_project(codebase);
+    let mut changed = false;
+    let now = Utc::now();
+
+    for snapshot in tasks {
+        if let Some(task) = find_task_mut(codebase, &snapshot.task_id) {
+            if task.title != snapshot.title {
+                task.title = snapshot.title.clone();
+                changed = true;
+            }
+            if task.status != snapshot.status {
+                task.status = snapshot.status.clone();
+                changed = true;
+            }
+            if task.description != snapshot.description {
+                task.description = snapshot.description.clone();
+                changed = true;
+            }
+            if changed {
+                task.updated_at = now;
+            }
+            continue;
+        }
+
+        let default_project = codebase.projects.first_mut().expect("default project exists");
+        default_project.tasks.push(Task {
+            id: TaskId::from(snapshot.task_id.clone()),
+            title: snapshot.title.clone(),
+            status: snapshot.status.clone(),
+            description: snapshot.description.clone(),
+            subtasks: vec![],
+            notes: vec![],
+            created_at: now,
+            updated_at: now,
+        });
+        changed = true;
+    }
+
+    if changed {
+        codebase.updated_at = now;
+    }
+
+    changed
 }
 
 fn apply_one(codebase: &mut Codebase, cmd: &WritebackCommand) -> ApplyResult {
@@ -219,6 +269,28 @@ fn update_task_status(
     Err(format!("task '{task_id}' not found in any project"))
 }
 
+fn ensure_default_project(codebase: &mut Codebase) {
+    if codebase.projects.is_empty() {
+        codebase.projects.push(Project {
+            name: ProjectName::from(codebase.name.0.clone()),
+            project_type: ProjectType::Backend,
+            tasks: vec![],
+            agents: vec![],
+        });
+    }
+}
+
+fn find_task_mut<'a>(codebase: &'a mut Codebase, task_id: &str) -> Option<&'a mut Task> {
+    for project in &mut codebase.projects {
+        for task in &mut project.tasks {
+            if task.id.0 == task_id {
+                return Some(task);
+            }
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -284,12 +356,41 @@ mod tests {
 
         assert!(matches!(results[0].outcome, ApplyOutcome::Applied));
         assert!(matches!(results[1].outcome, ApplyOutcome::Applied));
+
         let task = &codebase.projects[0].tasks[0];
         assert_eq!(task.status, TaskStatus::Blocked);
         assert!(task
             .notes
             .iter()
             .any(|note| note.contains("Waiting on dependency")));
+    }
+
+    #[test]
+    fn reconcile_task_snapshot_creates_and_updates_tasks() {
+        let mut codebase = make_codebase();
+        let changed = reconcile_task_snapshot(
+            &mut codebase,
+            &[
+                TaskSnapshot {
+                    task_id: "T-1".to_owned(),
+                    title: "Rename task".to_owned(),
+                    status: TaskStatus::InProgress,
+                    description: Some("updated".to_owned()),
+                },
+                TaskSnapshot {
+                    task_id: "T-2".to_owned(),
+                    title: "New task".to_owned(),
+                    status: TaskStatus::Pending,
+                    description: None,
+                },
+            ],
+        );
+
+        assert!(changed);
+        assert_eq!(codebase.projects[0].tasks.len(), 2);
+        assert_eq!(codebase.projects[0].tasks[0].title, "Rename task");
+        assert_eq!(codebase.projects[0].tasks[0].status, TaskStatus::InProgress);
+        assert_eq!(codebase.projects[0].tasks[1].id.0, "T-2");
     }
 
     #[test]

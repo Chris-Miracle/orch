@@ -24,6 +24,8 @@ pub struct TemplateContext {
     pub architecture: ArchitectureCtx,
     /// Additional conventions to include.
     pub conventions: Vec<String>,
+    /// Additional notes to include.
+    pub notes: Vec<String>,
     /// FRD skill entries.
     pub skills: Vec<SkillCtx>,
     /// FRD task entries (done tasks excluded).
@@ -138,17 +140,30 @@ impl TemplateContext {
             })
             .collect();
 
-        let skills: Vec<SkillCtx> = codebase
-            .projects
+        let mut skill_ids = std::collections::BTreeSet::new();
+        let mut skills: Vec<SkillCtx> = codebase
+            .skills
             .iter()
-            .flat_map(|p| p.agents.iter())
-            .filter_map(|a| a.skills.as_ref())
-            .flat_map(|agent_skills| agent_skills.iter())
+            .filter(|skill| skill_ids.insert(skill.id.clone()))
             .map(|skill| SkillCtx {
-                id: skill.clone(),
-                description: skill.clone(),
+                id: skill.id.clone(),
+                description: skill.description.clone(),
             })
             .collect();
+
+        skills.extend(
+            codebase
+                .projects
+                .iter()
+                .flat_map(|p| p.agents.iter())
+                .filter_map(|a| a.skills.as_ref())
+                .flat_map(|agent_skills| agent_skills.iter())
+                .filter(|skill| skill_ids.insert((*skill).clone()))
+                .map(|skill| SkillCtx {
+                    id: skill.clone(),
+                    description: skill.clone(),
+                }),
+        );
 
         let subagents: Vec<SubagentCtx> = codebase
             .projects
@@ -180,7 +195,8 @@ impl TemplateContext {
             architecture: ArchitectureCtx {
                 summary: "Refer to the project README and inline documentation.".to_string(),
             },
-            conventions: Vec::new(),
+            conventions: codebase.conventions.clone(),
+            notes: codebase.notes.clone(),
             skills,
             tasks,
             subagents,

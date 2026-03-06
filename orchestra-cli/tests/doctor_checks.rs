@@ -76,5 +76,6 @@ fn doctor_json_contains_expected_checks() {
     assert!(names.contains(&"registry integrity"));
     assert!(names.contains(&"codebase paths"));
     assert!(names.contains(&"pilot.md presence"));
+    assert!(names.contains(&"guide presence"));
     assert!(names.contains(&"staleness summary"));
 }

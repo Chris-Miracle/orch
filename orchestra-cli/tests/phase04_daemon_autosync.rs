@@ -174,10 +174,10 @@ fn registry_change_triggers_auto_sync() {
         String::from_utf8_lossy(&sync_output.stderr),
     );
 
-    let target = codebase_dir.join("CLAUDE.md");
+    let target = codebase_dir.join("orchestra/controls/CLAUDE.md");
     assert!(
         target.exists(),
-        "CLAUDE.md should exist after baseline sync"
+        "control CLAUDE.md should exist after baseline sync"
     );
 
     let sentinel = "phase04-autosync-sentinel";

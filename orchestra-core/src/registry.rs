@@ -323,6 +323,52 @@ pub fn add_codebase(
 }
 
 // ---------------------------------------------------------------------------
+// 7. Remove codebase
+// ---------------------------------------------------------------------------
+
+/// Remove a codebase from the registry by deleting its YAML file.
+///
+/// If the parent project directory becomes empty after deletion,
+/// it (and its `project.yaml` index) are also removed.
+pub fn remove_codebase_at(
+    home: &Path,
+    project: &ProjectName,
+    codebase: &CodebaseName,
+) -> Result<(), RegistryError> {
+    let path = codebase_path_at(home, project, codebase);
+    if path.exists() {
+        std::fs::remove_file(&path)?;
+    }
+
+    // Prune the project directory if it only contains project.yaml or is empty
+    let project_dir = home.join(".orchestra").join("projects").join(&project.0);
+    if project_dir.exists() {
+        let remaining: Vec<_> = std::fs::read_dir(&project_dir)?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy() != "project.yaml")
+            .collect();
+        if remaining.is_empty() {
+            // Remove project.yaml then the dir itself
+            let index = project_dir.join("project.yaml");
+            if index.exists() {
+                let _ = std::fs::remove_file(&index);
+            }
+            let _ = std::fs::remove_dir(&project_dir);
+        }
+    }
+
+    Ok(())
+}
+
+/// `remove_codebase_at` convenience wrapper.
+pub fn remove_codebase(
+    project: &ProjectName,
+    codebase: &CodebaseName,
+) -> Result<(), RegistryError> {
+    remove_codebase_at(&home()?, project, codebase)
+}
+
+// ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
 

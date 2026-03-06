@@ -9,6 +9,7 @@ use serde::Serialize;
 
 use orchestra_core::registry;
 use orchestra_daemon::{paths::socket_path, request_status, DaemonError};
+use orchestra_renderer::engine::{guide_path, pilot_path};
 use orchestra_sync::{managed_agent_paths, staleness};
 
 const REPO: &str = "Chris-Miracle/orch";
@@ -55,6 +56,7 @@ impl DoctorArgs {
 
                 let mut missing_paths = Vec::new();
                 let mut missing_pilot = Vec::new();
+                let mut missing_guide = Vec::new();
                 let mut stale = 0usize;
                 let mut current = 0usize;
                 let mut other = 0usize;
@@ -65,9 +67,14 @@ impl DoctorArgs {
                         missing_paths.push(format!("{}:{}", project.0, codebase.path.display()));
                     }
 
-                    let pilot = codebase.path.join(".orchestra").join("pilot.md");
+                    let pilot = pilot_path(&codebase.path);
                     if !pilot.exists() {
                         missing_pilot.push(format!("{}:{}", project.0, codebase.name.0));
+                    }
+
+                    let guide = guide_path(&codebase.path);
+                    if !guide.exists() {
+                        missing_guide.push(format!("{}:{}", project.0, codebase.name.0));
                     }
 
                     if let Ok(signal) = staleness::check(&home, project, codebase) {
@@ -79,7 +86,8 @@ impl DoctorArgs {
                     }
 
                     let mut expected = managed_agent_paths(&[(project.clone(), codebase.clone())]);
-                    expected.push(codebase.path.join(".orchestra").join("pilot.md"));
+                    expected.push(guide_path(&codebase.path));
+                    expected.push(pilot_path(&codebase.path));
                     let missing = expected
                         .into_iter()
                         .filter(|p| !p.exists())
@@ -107,13 +115,27 @@ impl DoctorArgs {
                     checks.push(DoctorCheck {
                         name: "pilot.md presence".into(),
                         status: "pass".into(),
-                        detail: "all codebases have .orchestra/pilot.md".into(),
+                        detail: "all codebases have orchestra/pilot.md".into(),
                     });
                 } else {
                     checks.push(DoctorCheck {
                         name: "pilot.md presence".into(),
                         status: "warn".into(),
                         detail: format!("missing: {}", missing_pilot.join(", ")),
+                    });
+                }
+
+                if missing_guide.is_empty() {
+                    checks.push(DoctorCheck {
+                        name: "guide presence".into(),
+                        status: "pass".into(),
+                        detail: "all codebases have orchestra/.guide.md".into(),
+                    });
+                } else {
+                    checks.push(DoctorCheck {
+                        name: "guide presence".into(),
+                        status: "warn".into(),
+                        detail: format!("missing: {}", missing_guide.join(", ")),
                     });
                 }
 

@@ -100,7 +100,11 @@ fn status_json_includes_all_codebases_with_expected_staleness_and_schema() {
     sync_codebase_via_cli(&home, "modified_api");
     sync_codebase_via_cli(&home, "stale_api");
 
-    fs::write(modified_dir.join("CLAUDE.md"), "manual local change\n").expect("modify file");
+    fs::write(
+        modified_dir.join("orchestra/controls/CLAUDE.md"),
+        "manual local change\n",
+    )
+    .expect("modify file");
 
     sleep(Duration::from_millis(1100));
     let stale_registry =
@@ -109,11 +113,11 @@ fn status_json_includes_all_codebases_with_expected_staleness_and_schema() {
     fs::write(&stale_registry, stale_yaml).expect("touch stale registry");
 
     assert!(
-        current_dir.join("CLAUDE.md").exists(),
+        current_dir.join("orchestra/controls/CLAUDE.md").exists(),
         "current codebase should be synced"
     );
     assert!(
-        stale_dir.join("CLAUDE.md").exists(),
+        stale_dir.join("orchestra/controls/CLAUDE.md").exists(),
         "stale codebase should be synced"
     );
 
@@ -188,4 +192,39 @@ fn status_json_includes_all_codebases_with_expected_staleness_and_schema() {
         by_name.get("never_api").map(String::as_str),
         Some("never_synced")
     );
+}
+
+#[test]
+fn sync_repairs_modified_managed_files() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = ProjectName::from("copnow");
+
+    let codebase_dir = init_codebase(&home, &workspace, &project, "repair_api");
+    sync_codebase_via_cli(&home, "repair_api");
+
+    let target = codebase_dir.join("orchestra/controls/CLAUDE.md");
+    let expected = fs::read_to_string(&target).expect("read baseline");
+    fs::write(&target, "manual local change\n").expect("modify managed file");
+
+    orchestra_cmd(home.path())
+        .args(["sync", "repair_api"])
+        .assert()
+        .success();
+
+    assert_eq!(fs::read_to_string(&target).expect("read repaired file"), expected);
+
+    let status = orchestra_cmd(home.path())
+        .args(["status", "--json"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8(status.get_output().stdout.clone()).expect("stdout utf8");
+    let payload: serde_json::Value = serde_json::from_str(&stdout).expect("parse status json");
+    let repair_row = payload["codebases"]
+        .as_array()
+        .expect("codebases array")
+        .iter()
+        .find(|row| row["codebase"].as_str() == Some("repair_api"))
+        .expect("repair_api row");
+    assert_eq!(repair_row["status"].as_str(), Some("current"));
 }

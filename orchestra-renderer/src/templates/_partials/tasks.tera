@@ -1,12 +1,14 @@
-{# Shared partial: task list with status badges #}
+{# Shared partial: canonical editable task block #}
 {# Usage: {% include "shared/_tasks.tera" %} #}
-{% if tasks %}
 ## Active Tasks
 
-| ID | Title | Status |
-|---|---|---|
-{% for task in tasks %}| {{ task.id }} | {{ task.title }} | {{ task.status }} |
-{% endfor %}
-{% else %}
-No tasks registered.
-{% endif %}
+Edit this block in any managed Orchestra file to add or update tasks. After save,
+the daemon syncs the registry and propagates the same task state to every provider file.
+Use status `done` to close work instead of deleting rows.
+
+<!-- orchestra:tasks -->
+| ID | Title | Status | Description |
+|---|---|---|---|
+{% for task in tasks %}| {{ task.id }} | {{ task.title }} | {{ task.status }} | {{ task.description | default(value="-") }} |
+{% endfor %}{% if not tasks %}<!-- Add rows like: | T-001 | Example task | pending | optional description | -->
+{% endif %}<!-- /orchestra:tasks -->

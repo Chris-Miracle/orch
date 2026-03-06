@@ -13,6 +13,7 @@ use std::path::Path;
 
 use chrono::Utc;
 use orchestra_core::registry;
+use orchestra_renderer::engine::{guide_path, pilot_path};
 use orchestra_renderer::AgentKind;
 
 use crate::{
@@ -24,7 +25,7 @@ use crate::{
 };
 
 use self::log::{log_event, WritebackEvent};
-use self::strip::{strip_update_block, write_error_block, write_error_block_messages};
+use self::strip::{strip_update_block, write_error_block_messages};
 use self::types::ApplyOutcome;
 pub use self::types::WritebackOutcome;
 
@@ -50,25 +51,41 @@ pub fn process_writeback(home: &Path, agent_file: &Path) -> Result<WritebackOutc
         crate::error::io_err(agent_file, e)
     })?;
 
-    // Early-exit: no block present.
-    let Some(block_meta) = parser::find_update_block(&content) else {
-        return Ok(WritebackOutcome::no_block());
-    };
+    let update_block = parser::find_update_block(&content);
+    let task_block = parser::find_task_block(&content);
 
-    let total_lines = content.lines().count();
-    if !block_meta.in_allowed_window(total_lines) {
-        tracing::debug!(
-            "writeback block ignored: outside allowed top/bottom windows path={} start_line={} end_line={} total_lines={}",
-            agent_file.display(),
-            block_meta.start_line,
-            block_meta.end_line,
-            total_lines
-        );
+    if update_block.is_none() && task_block.is_none() {
         return Ok(WritebackOutcome::no_block());
     }
 
-    // 2. Parse + validate.
-    let parse_result = parser::parse_block(block_meta.content);
+    let parse_result = if let Some(block_meta) = update_block.as_ref() {
+        let total_lines = content.lines().count();
+        if !block_meta.in_allowed_window(total_lines) {
+            tracing::debug!(
+                "writeback block ignored: outside allowed top/bottom windows path={} start_line={} end_line={} total_lines={}",
+                agent_file.display(),
+                block_meta.start_line,
+                block_meta.end_line,
+                total_lines
+            );
+            return Ok(WritebackOutcome::no_block());
+        }
+        parser::parse_block(block_meta.content)
+    } else {
+        self::types::ParseResult {
+            commands: vec![],
+            errors: vec![],
+        }
+    };
+
+    let task_parse_result = if let Some(block_meta) = task_block.as_ref() {
+        parser::parse_task_block(block_meta.content)
+    } else {
+        self::types::TaskParseResult {
+            tasks: vec![],
+            errors: vec![],
+        }
+    };
 
     // 3. Find the codebase that owns this agent file
     let all = registry::list_codebases_at(home)?;
@@ -87,6 +104,7 @@ pub fn process_writeback(home: &Path, agent_file: &Path) -> Result<WritebackOutc
                 .iter()
                 .map(|error| error.to_string())
                 .collect::<Vec<_>>();
+            teaching_messages.extend(task_parse_result.errors.iter().map(|error| error.to_string()));
             teaching_messages.push("File not associated with any registered codebase".to_owned());
 
             let block_stripped = match strip_update_block(agent_file) {
@@ -112,7 +130,7 @@ pub fn process_writeback(home: &Path, agent_file: &Path) -> Result<WritebackOutc
             return Ok(WritebackOutcome {
                 block_found: true,
                 apply_results: vec![],
-                parse_errors: parse_result.errors,
+                parse_errors: merge_parse_errors(parse_result.errors, task_parse_result.errors),
                 block_stripped,
                 error_block_written,
             });
@@ -121,26 +139,40 @@ pub fn process_writeback(home: &Path, agent_file: &Path) -> Result<WritebackOutc
 
     let codebase_name = codebase.name.0.clone();
 
-    // 4. Apply successful commands in-memory.
+    // 4. Apply task snapshot first, then let explicit update commands override it.
+    let task_snapshot_changed = applier::reconcile_task_snapshot(&mut codebase, &task_parse_result.tasks);
     let apply_results = applier::apply(&mut codebase, &parse_result.commands);
 
     // 5. Save registry atomically.
-    registry::save_codebase_at(home, &project_name, &codebase)?;
+    let should_save_registry = !apply_results.is_empty() || task_snapshot_changed;
+    if should_save_registry {
+        registry::save_codebase_at(home, &project_name, &codebase)?;
+    }
 
-    apply_hash_store_lifecycle(home, &codebase_name, &parse_result.commands, &apply_results)?;
+    if !apply_results.is_empty() {
+        apply_hash_store_lifecycle(home, &codebase_name, &parse_result.commands, &apply_results)?;
+    }
 
     // 6. Strip update block atomically.
-    let block_stripped = match strip_update_block(agent_file) {
-        Ok(()) => true,
-        Err(e) => {
-            tracing::warn!("writeback: failed to strip update block: {}", e);
-            false
+    let block_stripped = if update_block.is_some() {
+        match strip_update_block(agent_file) {
+            Ok(()) => true,
+            Err(e) => {
+                tracing::warn!("writeback: failed to strip update block: {}", e);
+                false
+            }
         }
+    } else {
+        false
     };
 
     // 7. Inject error block atomically when needed.
-    let error_block_written = if block_stripped && !parse_result.errors.is_empty() {
-        match write_error_block(agent_file, &parse_result.errors) {
+    let all_parse_errors = merge_parse_errors(parse_result.errors.clone(), task_parse_result.errors.clone());
+    let error_block_written = if !all_parse_errors.is_empty() {
+        match write_error_block_messages(
+            agent_file,
+            &all_parse_errors.iter().map(|error| error.to_string()).collect::<Vec<_>>(),
+        ) {
             Ok(()) => true,
             Err(e) => {
                 tracing::warn!("writeback: failed to write error block: {}", e);
@@ -152,12 +184,14 @@ pub fn process_writeback(home: &Path, agent_file: &Path) -> Result<WritebackOutc
     };
 
     // 8. Run full sync pipeline.
-    if let Err(e) = pipeline::run(home, SyncScope::Codebase(codebase_name.clone()), false) {
+    if should_save_registry {
+        if let Err(e) = pipeline::run(home, SyncScope::Codebase(codebase_name.clone()), false) {
         tracing::warn!(
             "writeback: sync pipeline failed after apply for {}: {}",
             codebase_name,
             e
         );
+        }
     }
 
     // 9. Count apply errors
@@ -183,7 +217,7 @@ pub fn process_writeback(home: &Path, agent_file: &Path) -> Result<WritebackOutc
         agent_file: &agent_file_str,
         codebase_name: &codebase_name,
         commands_applied,
-        parse_errors: parse_result.errors.len(),
+        parse_errors: all_parse_errors.len(),
         apply_errors,
         commands: &command_list,
         block_stripped,
@@ -194,12 +228,20 @@ pub fn process_writeback(home: &Path, agent_file: &Path) -> Result<WritebackOutc
     }
 
     Ok(WritebackOutcome {
-        block_found: true,
+        block_found: update_block.is_some() || task_snapshot_changed || !all_parse_errors.is_empty(),
         apply_results,
-        parse_errors: parse_result.errors,
+        parse_errors: all_parse_errors,
         block_stripped,
         error_block_written,
     })
+}
+
+fn merge_parse_errors(
+    mut left: Vec<self::types::ParseError>,
+    right: Vec<self::types::ParseError>,
+) -> Vec<self::types::ParseError> {
+    left.extend(right);
+    left
 }
 
 fn apply_hash_store_lifecycle(
@@ -297,6 +339,8 @@ pub fn managed_agent_paths(
                 paths.push(output_path);
             }
         }
+        paths.push(guide_path(&codebase.path));
+        paths.push(pilot_path(&codebase.path));
     }
     paths
 }
@@ -338,8 +382,8 @@ mod tests {
         pipeline::run(home.path(), SyncScope::Codebase("test_cb".to_owned()), false)
             .expect("initial sync");
 
-        let agent_file = workspace.path().join("test_cb").join("CLAUDE.md");
-        assert!(agent_file.exists(), "CLAUDE.md should exist after sync");
+        let agent_file = workspace.path().join("test_cb").join("orchestra/controls/CLAUDE.md");
+        assert!(agent_file.exists(), "control CLAUDE.md should exist after sync");
 
         let outcome = process_writeback(home.path(), &agent_file).expect("process");
         assert!(!outcome.block_found);
@@ -354,7 +398,7 @@ mod tests {
         pipeline::run(home.path(), SyncScope::Codebase("test_cb".to_owned()), false)
             .expect("initial sync");
 
-        let agent_file = workspace.path().join("test_cb").join("CLAUDE.md");
+        let agent_file = workspace.path().join("test_cb").join("orchestra/controls/CLAUDE.md");
 
         // Append an update block
         let original = fs::read_to_string(&agent_file).expect("read");
@@ -388,7 +432,7 @@ mod tests {
         pipeline::run(home.path(), SyncScope::Codebase("test_cb".to_owned()), false)
             .expect("initial sync");
 
-        let agent_file = workspace.path().join("test_cb").join("CLAUDE.md");
+        let agent_file = workspace.path().join("test_cb").join("orchestra/controls/CLAUDE.md");
 
         let original = fs::read_to_string(&agent_file).expect("read");
         let with_block = format!(
@@ -415,7 +459,7 @@ mod tests {
         pipeline::run(home.path(), SyncScope::Codebase("test_cb".to_owned()), false)
             .expect("initial sync");
 
-        let agent_file = workspace.path().join("test_cb").join("CLAUDE.md");
+        let agent_file = workspace.path().join("test_cb").join("orchestra/controls/CLAUDE.md");
         let original = fs::read_to_string(&agent_file).expect("read");
         let with_block = format!(
             "{original}\n<!-- orchestra:update -->\ntak_completed: T-42\n<!-- /orchestra:update -->\n"
@@ -482,7 +526,7 @@ mod tests {
         pipeline::run(home.path(), SyncScope::Codebase("test_cb".to_owned()), false)
             .expect("initial sync");
 
-        let agent_file = cb_dir.join("CLAUDE.md");
+        let agent_file = cb_dir.join("orchestra/controls/CLAUDE.md");
         let original = fs::read_to_string(&agent_file).expect("read");
         let with_block = format!(
             "{original}\n<!-- orchestra:update -->\ntask_completed: T-42\n<!-- /orchestra:update -->\n"
@@ -502,6 +546,49 @@ mod tests {
     }
 
     #[test]
+    fn process_writeback_task_block_updates_registry_and_syncs_other_files() {
+        let home = TempDir::new().unwrap();
+        let workspace = TempDir::new().unwrap();
+        let cb_dir = workspace.path().join("task_block_cb");
+        fs::create_dir_all(&cb_dir).expect("mkdir");
+
+        registry::init_at(
+            cb_dir.clone(),
+            ProjectName::from("copnow"),
+            Some(ProjectType::Backend),
+            home.path(),
+        )
+        .expect("init");
+
+        pipeline::run(home.path(), SyncScope::Codebase("task_block_cb".to_owned()), false)
+            .expect("initial sync");
+
+        let claude_file = cb_dir.join("orchestra/controls/CLAUDE.md");
+        let original = fs::read_to_string(&claude_file).expect("read claude");
+        let updated = original.replace(
+            "<!-- Add rows like: | T-001 | Example task | pending | optional description | -->",
+            "| T-123 | Unify tasks | in_progress | added from CLAUDE |",
+        );
+        fs::write(&claude_file, updated).expect("write claude");
+
+        let outcome = process_writeback(home.path(), &claude_file).expect("process");
+        assert!(outcome.block_found);
+        assert!(outcome.parse_errors.is_empty());
+
+        let all = registry::list_codebases_at(home.path()).expect("list");
+        let (_, cb) = all
+            .into_iter()
+            .find(|(_, cb)| cb.name.0 == "task_block_cb")
+            .expect("cb");
+        assert_eq!(cb.projects[0].tasks[0].id.0, "T-123");
+        assert_eq!(cb.projects[0].tasks[0].status, TaskStatus::InProgress);
+
+        let agents = fs::read_to_string(cb_dir.join("orchestra/controls/AGENTS.md")).expect("read agents");
+        assert!(agents.contains("T-123"));
+        assert!(agents.contains("Unify tasks"));
+    }
+
+    #[test]
     fn process_writeback_ignores_block_outside_edge_windows() {
         let home = TempDir::new().unwrap();
         let workspace = TempDir::new().unwrap();
@@ -510,7 +597,7 @@ mod tests {
         pipeline::run(home.path(), SyncScope::Codebase("test_cb".to_owned()), false)
             .expect("initial sync");
 
-        let agent_file = workspace.path().join("test_cb").join("CLAUDE.md");
+        let agent_file = workspace.path().join("test_cb").join("orchestra/controls/CLAUDE.md");
         let mut content = String::new();
         for _ in 0..30 {
             content.push_str("line\n");
