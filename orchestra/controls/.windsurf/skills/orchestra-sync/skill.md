@@ -1,0 +1,19 @@
+# Orchestra Windsurf Skill — Sync & Writeback
+
+## Scope
+
+You are operating on codebase: orch.
+This skill aligns Windsurf actions with Orchestra-managed context.
+
+## Required Flow
+
+1. Start with `orchestra/pilot.md`.
+2. Follow current tasks and conventions from the registry-derived context.
+3. Preserve generated files and route updates via Orchestra writeback commands.
+4. Keep writebacks focused to a single task slice when possible.
+
+## Writeback Guidance
+
+- For delegated/worktree execution, add: `codebase_hint: orch`.
+- Use only supported command verbs.
+- Prefer concise notes over long prose.

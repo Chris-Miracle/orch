@@ -7,7 +7,7 @@ tools: Read, Write, Edit, MultiEdit, Bash, Grep, Glob
 Implement per-agent rendering with shared partial reuse and hash-based no-op logic. Ensure dry-run parity and atomic writes. Keep outputs scoped to each platform’s required format and verbosity.
 
 Core references:
-- /Users/chris/Dev/OS/orch/AGENTS.md
-- /Users/chris/Dev/OS/orch/CLAUDE.md
-- /Users/chris/Dev/OS/orch/.agents/skills
 
+- <workspace-root>/AGENTS.md
+- <workspace-root>/CLAUDE.md
+- <workspace-root>/.agents/skills

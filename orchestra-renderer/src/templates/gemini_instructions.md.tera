@@ -7,7 +7,7 @@
 #}
 {% include "shared/_header.tera" %}
 
-> Primary workflow context lives in `.orchestra/pilot.md`.
+> Start with `orchestra/pilot.md`. Use `orchestra/.guide.md` for durable repo context.
 
 # {{ codebase_name }}
 
@@ -16,7 +16,7 @@ This file provides persistent context for Gemini CLI operating in this repositor
 ## Project
 
 - **Codebase:** `{{ codebase_name }}`
-- **Root:** `{{ codebase_path }}`
+- **Guide:** `orchestra/.guide.md`
 
 {% include "shared/_stack.tera" %}
 

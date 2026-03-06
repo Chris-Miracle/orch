@@ -134,7 +134,7 @@ mod tests {
         .expect("init");
         sync_codebase("copnow_api", home.path(), false).expect("sync");
 
-        let target = codebase_dir.join("CLAUDE.md");
+        let target = codebase_dir.join("orchestra/controls/CLAUDE.md");
         let edited = format!(
             "{}\nmanual tweak\n",
             fs::read_to_string(&target).expect("read")
@@ -149,8 +149,8 @@ mod tests {
             .iter()
             .find(|d| d.path.ends_with("CLAUDE.md"))
             .expect("CLAUDE diff");
-        assert!(claude_diff.unified_diff.contains("--- a/CLAUDE.md"));
-        assert!(claude_diff.unified_diff.contains("+++ b/CLAUDE.md"));
+        assert!(claude_diff.unified_diff.contains("--- a/orchestra/controls/CLAUDE.md"));
+        assert!(claude_diff.unified_diff.contains("+++ b/orchestra/controls/CLAUDE.md"));
         assert!(claude_diff.unified_diff.contains("@@"));
     }
 

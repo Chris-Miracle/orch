@@ -184,9 +184,12 @@ fn phase05_writeback_end_to_end_propagation() {
         String::from_utf8_lossy(&sync_output.stderr),
     );
 
-    let claude = codebase_dir.join("CLAUDE.md");
-    let cursor = codebase_dir.join(".cursor").join("rules").join("orchestra.mdc");
-    assert!(claude.exists(), "CLAUDE.md should exist after baseline sync");
+    let claude = codebase_dir.join("orchestra/controls/CLAUDE.md");
+    let cursor = codebase_dir
+        .join("orchestra/controls/.cursor")
+        .join("rules")
+        .join("orchestra.mdc");
+    assert!(claude.exists(), "control CLAUDE.md should exist after baseline sync");
     assert!(cursor.exists(), "cursor rules should exist after baseline sync");
 
     let mut daemon = DaemonProcess::start(binary.clone(), home.path().to_path_buf());

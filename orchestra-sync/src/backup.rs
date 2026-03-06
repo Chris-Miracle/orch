@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use orchestra_renderer::engine::{backup_dir, PROJECT_ORCHESTRA_DIR};
+
 use crate::error::SyncError;
 
 #[derive(Debug, Clone)]
@@ -25,6 +27,7 @@ pub struct BackupFileEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupManifest {
     pub created_at: DateTime<Utc>,
+    pub layout_version: String,
     pub files: Vec<BackupFileEntry>,
 }
 
@@ -50,7 +53,7 @@ pub fn backup_agent_files(
     codebase_root: &Path,
     items: &[BackupItem],
 ) -> Result<BackupManifest, SyncError> {
-    let backup_root = codebase_root.join(".orchestra").join("backup");
+    let backup_root = backup_dir(codebase_root);
     fs::create_dir_all(&backup_root)
         .map_err(|e| SyncError::Io { path: backup_root.clone(), source: e })?;
 
@@ -93,6 +96,7 @@ pub fn backup_agent_files(
 
     let manifest = BackupManifest {
         created_at: Utc::now(),
+        layout_version: format!("{PROJECT_ORCHESTRA_DIR}/controls@v2"),
         files,
     };
 
@@ -102,6 +106,52 @@ pub fn backup_agent_files(
         .map_err(|e| SyncError::Io { path: manifest_path, source: e })?;
 
     Ok(manifest)
+}
+
+pub fn load_backup_manifest(codebase_root: &Path) -> Result<Option<BackupManifest>, SyncError> {
+    let manifest_path = backup_dir(codebase_root).join("manifest.json");
+    if !manifest_path.exists() {
+        return Ok(None);
+    }
+
+    let json = fs::read_to_string(&manifest_path)
+        .map_err(|e| SyncError::Io { path: manifest_path.clone(), source: e })?;
+    let manifest = serde_json::from_str(&json)
+        .map_err(SyncError::Json)?;
+    Ok(Some(manifest))
+}
+
+/// Restore agent files from the `orchestra/backup/` directory using `manifest.json`.
+///
+/// Reads the backup manifest written by [`backup_agent_files`] and copies
+/// each backed-up file back to its original relative location inside the
+/// codebase. Overwrites existing files. Returns the number of files restored.
+pub fn restore_from_backup(codebase_root: &Path) -> Result<usize, SyncError> {
+    let Some(manifest) = load_backup_manifest(codebase_root)? else {
+        return Ok(0);
+    };
+
+    let mut restored_count = 0;
+
+    for entry in manifest.files {
+        let backup_file = codebase_root.join(&entry.backup_path);
+        let target_file = codebase_root.join(&entry.original_path);
+
+        if backup_file.exists() && backup_file.is_file() {
+            if let Some(parent) = target_file.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            if fs::copy(&backup_file, &target_file).is_ok() {
+                restored_count += 1;
+            }
+        } else if backup_file.exists() && backup_file.is_dir() {
+            if copy_dir_recursive(&backup_file, &target_file).is_ok() {
+                restored_count += 1;
+            }
+        }
+    }
+
+    Ok(restored_count)
 }
 
 pub fn remove_agent_files(items: &[BackupItem]) -> Result<(), SyncError> {

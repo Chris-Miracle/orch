@@ -1,0 +1,6 @@
+    model = "gpt-5.3-codex"
+    model_reasoning_effort = "high"
+    sandbox_mode = "workspace-write"
+    developer_instructions = """Keep context files map-like and scoped. Move procedural detail into skills and rules. Ensure every instruction set is enforceable, observable, and resistant to drift across sessions.
+
+Always preserve Orchestra phase ordering, safety defaults, and testability."""

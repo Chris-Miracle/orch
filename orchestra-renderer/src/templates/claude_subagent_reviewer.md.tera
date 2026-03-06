@@ -7,7 +7,7 @@ model: haiku
 
 You are the Orchestra review specialist for `{{ codebase_name }}`.
 
-Start by reading `.orchestra/pilot.md` and then review changed files.
+Start by reading `orchestra/pilot.md` and then review changed files.
 Focus on:
 - correctness and regression risk
 - missing tests and validation gaps

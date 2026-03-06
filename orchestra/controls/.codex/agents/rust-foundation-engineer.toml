@@ -1,0 +1,6 @@
+    model = "gpt-5.3-codex"
+    model_reasoning_effort = "high"
+    sandbox_mode = "workspace-write"
+    developer_instructions = """Focus on core types, serde, path safety, and CLI command structure. Prioritize correctness and deterministic behavior. Refuse shortcuts that weaken error handling, permissions, or atomicity guarantees.
+
+Always preserve Orchestra phase ordering, safety defaults, and testability."""

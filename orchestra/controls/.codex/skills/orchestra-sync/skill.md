@@ -1,0 +1,19 @@
+# Orchestra Codex Skill — Sync & Writeback
+
+## Scope
+
+You are operating on codebase: orch.
+This skill keeps Codex execution synchronized with Orchestra.
+
+## Required Flow
+
+1. Read `orchestra/pilot.md` first.
+2. Execute tasks according to current status and constraints.
+3. Report outcomes via valid writeback commands.
+4. Avoid mutating generated orchestration files directly.
+
+## Writeback Guidance
+
+- Add `codebase_hint: orch` when path ownership may be ambiguous.
+- Keep each command deterministic and parseable.
+- Record blocking conditions with explicit reasons.

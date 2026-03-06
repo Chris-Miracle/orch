@@ -4,24 +4,29 @@
 
 Do the following steps in order. Do not skip any step.
 
-1. Read the current version from `/Users/chris/Dev/OS/orch/Cargo.toml` — look
-   for the `version = "..."` line under `[workspace.package]`.
+1. Read the current version from `<workspace-root>/Cargo.toml` — look for the
+   `version = "..."` line under `[workspace.package]`.
 
-2. Check the latest Git tag on the remote to confirm what was last released:
+2. Read the release-facing repo docs before deciding the summary for this bump:
+    - `<workspace-root>/README.md` for installation and release-channel wording
+    - `<workspace-root>/guide.md` for the latest live-validation notes and any
+      source-tree follow-up fixes that should be called out in release notes
+
+3. Check the latest Git tag on the remote to confirm what was last released:
        git ls-remote --tags origin | sort -t/ -k3 -V | tail -5
 
-3. Increment the PATCH number of the current Cargo.toml version by 1.
+4. Increment the PATCH number of the current Cargo.toml version by 1.
    For example:  0.1.7 → 0.1.8  |  0.2.0 → 0.2.1  |  1.0.3 → 1.0.4
    (Only bump MINOR or MAJOR if this release contains breaking changes or
    significant new features — use your judgment.)
 
-4. Write the new version back into `Cargo.toml` (the `version = "..."` line
+5. Write the new version back into `Cargo.toml` (the `version = "..."` line
    under `[workspace.package]` only).
 
-5. Run the following to sync Cargo.lock:
+6. Run the following to sync Cargo.lock:
        cargo update -p orchestra-cli
 
-6. Write a meaningful commit message. Do NOT use a bare "chore: bump" message.
+7. Write a meaningful commit message. Do NOT use a bare "chore: bump" message.
 
    FORMAT:
        <type>: <concise summary of what changed> (v<new-version>)
@@ -57,18 +62,30 @@ Do the following steps in order. Do not skip any step.
 
        chore: dependency updates, clippy lint fixes (v0.3.5)
 
-   RULES:
-   • The subject line MUST end with the version in parentheses.
-   • Keep the subject line under 72 characters.
-   • If the release is truly just a version bump with no meaningful changes,
-     "chore: version bump (v<new-version>)" is acceptable — but this should
-     be rare.
+     RULES:
+     • The subject line MUST end with the version in parentheses.
+     • Keep the subject line under 72 characters.
+     • If the release includes both live-validation findings and repo-side fixes,
+         summarize the user-visible outcome, not just the internal refactor.
+     • If the source tree now fixes an issue that still exists in the last stable
+         binary, say that clearly in the bullets.
+     • If the release is truly just a version bump with no meaningful changes,
+         "chore: version bump (v<new-version>)" is acceptable — but this should
+         be rare.
 
-7. Detect the current branch and push to it:
+8. Stage the release files and create the commit using that message.
+   At minimum, include:
+       git add Cargo.toml Cargo.lock
+       git commit -m "<subject>"
+
+   If you wrote a non-trivial body, use a multi-line commit message rather than
+   collapsing it into the subject line.
+
+9. Detect the current branch and push to it:
        git push origin HEAD
    Do NOT hardcode the branch name. Do NOT push to beta or main directly.
 
-8. Do NOT create a Git tag.
+10. Do NOT create a Git tag.
    Do NOT push to main or beta directly.
    Do NOT trigger any release manually.
 
@@ -102,10 +119,12 @@ FORMAT:
 
 RULES:
 • Write from the user's perspective — focus on what they can now do, not
-  internal implementation details.
+    internal implementation details.
+• If the release closes a bug found during live validation, describe both the
+    original symptom and the visible fix in one concise bullet.
 • Link to relevant issues or discussions where possible.
 • Keep each bullet to one line (wrap at ~80 chars).
 • Omit empty sections entirely.
 • If the release is a single fix or tiny change, a one-liner is fine:
-      "Fixed staleness false-positive when registry is empty."
+    "Fixed staleness false-positive when registry is empty."
 ──────────────────────────────────────────────

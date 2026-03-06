@@ -11,11 +11,13 @@ fn scans_known_agent_files_and_dirs() {
     fs::create_dir_all(root.join(".cursor/rules")).expect("mkdir cursor");
     fs::create_dir_all(root.join(".claude/agents")).expect("mkdir claude agents");
     fs::create_dir_all(root.join(".github")).expect("mkdir github");
+    fs::create_dir_all(root.join("AGENT/.claude/agents")).expect("mkdir AGENT claude agents");
 
     fs::write(root.join("CLAUDE.md"), "x").expect("write CLAUDE");
     fs::write(root.join("AGENTS.md"), "x").expect("write AGENTS");
     fs::write(root.join(".github/copilot-instructions.md"), "x").expect("write copilot");
     fs::write(root.join(".aider.conf"), "x").expect("write aider");
+    fs::write(root.join("AGENT/CLAUDE.md"), "x").expect("write AGENT CLAUDE");
 
     let hits = scan_agent_files(root).expect("scan");
     let paths: Vec<String> = hits
@@ -31,6 +33,7 @@ fn scans_known_agent_files_and_dirs() {
 
     assert!(paths.iter().any(|p| p == "CLAUDE.md"));
     assert!(paths.iter().any(|p| p == "AGENTS.md"));
+    assert!(paths.iter().any(|p| p == "AGENT"));
     assert!(paths.iter().any(|p| p == ".github/copilot-instructions.md"));
     assert!(paths.iter().any(|p| p == ".cursor"));
     assert!(paths.iter().any(|p| p == ".claude/agents"));

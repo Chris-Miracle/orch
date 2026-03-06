@@ -4,9 +4,9 @@
 
 Orchestra is an open-source macOS CLI that manages every AI coding agent — Claude, Copilot, Cursor, Codex, Windsurf, Gemini, Cline, and Antigravity — across all your projects from a single source of truth. It detects your stack, discovers existing agent files, backs them up safely, then renders official-spec instruction files, subagent configs, and skill artifacts for every provider. One registry, one sync, every agent stays current.
 
-[![Release](https://img.shields.io/github/v/release/Chris-Miracle/orch)](https://github.com/Chris-Miracle/orch/releases/latest)
+[![Release](https://img.shields.io/badge/release-repository%20hosted-informational)](#installation)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![macOS](https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple)](https://github.com/Chris-Miracle/orch/releases/latest)
+[![macOS](https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple)](#requirements)
 
 ---
 
@@ -22,8 +22,10 @@ Orchestra is an open-source macOS CLI that manages every AI coding agent — Cla
   - [Build from source](#build-from-source)
 - [Release channels](#release-channels)
 - [Quick start](#quick-start)
+- [Operational guide](#operational-guide)
 - [Commands](#commands)
   - [orchestra onboard](#orchestra-onboard)
+  - [orchestra offboard](#orchestra-offboard)
   - [orchestra init](#orchestra-init)
   - [orchestra project](#orchestra-project)
   - [orchestra sync](#orchestra-sync)
@@ -32,6 +34,7 @@ Orchestra is an open-source macOS CLI that manages every AI coding agent — Cla
   - [orchestra doctor](#orchestra-doctor)
   - [orchestra daemon](#orchestra-daemon)
   - [orchestra update](#orchestra-update)
+  - [orchestra reset](#orchestra-reset)
 - [Pilot entry point](#pilot-entry-point)
 - [Generated files](#generated-files)
 - [Writeback protocol](#writeback-protocol)
@@ -45,18 +48,19 @@ Orchestra is an open-source macOS CLI that manages every AI coding agent — Cla
 ## What it does
 
 1. **Detects** your stack — language, framework, and project type — by inspecting manifest files.
-2. **Discovers** existing agent files (CLAUDE.md, .cursor/rules/, .github/copilot-instructions.md, etc.) and extracts conventions and notes from them.
-3. **Backs up** those files to `.orchestra/backup/` with a JSON manifest before touching anything.
-4. **Renders** official-spec instruction files, subagent definitions, and skill artifacts for every detected provider — all from your single registry YAML.
-5. **Generates** `.orchestra/pilot.md` as the universal entry point that every agent reads first.
-6. **Watches** for changes via a background daemon and auto-syncs when your registry or templates change.
-7. **Writes back** — agents can report task updates, convention additions, and status changes directly inside managed files; Orchestra parses and applies them to the registry automatically.
+2. **Discovers** existing agent files and libraries (`CLAUDE.md`, `.cursor/rules/`, `.github/copilot-instructions.md`, repo-level `AGENT/`, etc.) and extracts conventions and notes from them.
+3. **Backs up** those files to `orchestra/backup/` with a JSON manifest before touching anything.
+4. **Imports** existing agent files into their matching generated destinations inside `orchestra/controls/`, merging preserved content into managed files when paths overlap and routing generic legacy guidance into `orchestra/.guide.md`.
+5. **Renders** Orchestra's own managed instruction files, subagent definitions, and skill artifacts into `orchestra/controls/` from your single registry YAML.
+6. **Generates** `orchestra/pilot.md` as the universal entry point that every agent reads first, plus `orchestra/.guide.md` as durable hidden repo context.
+7. **Watches** for changes via a background daemon and auto-syncs when your registry or templates change.
+8. **Writes back** — agents can report task updates, convention additions, and status changes directly inside managed files; Orchestra parses and applies them to the registry automatically.
 
 ---
 
 ## Supported agents
 
-Orchestra generates provider-specific files in the format each agent expects:
+Orchestra generates provider-specific files inside `orchestra/controls/`, keeping the repo root clean while preserving each provider's expected relative structure:
 
 | Agent           | Output files                                                                                                            |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------- |
@@ -69,7 +73,7 @@ Orchestra generates provider-specific files in the format each agent expects:
 | **Cline**       | `.clinerules/orchestra.md`, `.agents/skills/orchestra-sync/skill.md`                                                    |
 | **Antigravity** | `.agent/rules/orchestra.md`, `.agent/skills/orchestra-sync/skill.md`                                                    |
 
-Every provider also gets the universal entry point at `.orchestra/pilot.md`.
+Every codebase also gets the universal entry point at `orchestra/pilot.md` and the hidden context file at `orchestra/.guide.md`.
 
 ---
 
@@ -100,10 +104,10 @@ Orchestra has two release channels. Choose the one that fits your use case:
 For everyday users who want a reliable, production-tested binary:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Chris-Miracle/orch/main/install.sh | sh
+curl -fsSL <raw-install-script-url> | sh
 ```
 
-This downloads the correct pre-built binary for your Mac (`arm64` or `x86_64`), installs it to `~/.local/bin`, strips the macOS quarantine flag, and sets your release channel to **stable** so `orchestra update` tracks stable releases going forward.
+Replace `<raw-install-script-url>` with the raw URL for this repository's `install.sh`. The script downloads the correct pre-built binary for your Mac (`arm64` or `x86_64`), installs it to `~/.local/bin`, strips the macOS quarantine flag, and sets your release channel to **stable** so `orchestra update` tracks stable releases going forward.
 
 ---
 
@@ -112,7 +116,7 @@ This downloads the correct pre-built binary for your Mac (`arm64` or `x86_64`), 
 For contributors and testers who want the latest changes before they reach stable:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Chris-Miracle/orch/main/install.sh | sh -s -- --beta
+curl -fsSL <raw-install-script-url> | sh -s -- --beta
 ```
 
 This downloads the latest beta pre-release and sets your release channel to **beta**. `orchestra update` will track beta releases automatically.
@@ -123,7 +127,7 @@ This downloads the latest beta pre-release and sets your release channel to **be
 
 ### Manual download
 
-1. Go to the [releases page](https://github.com/Chris-Miracle/orch/releases).
+1. Go to this repository's releases page.
    - **Stable:** Look for the latest release without a `-beta` label.
    - **Beta:** Look for the latest pre-release tagged `vX.Y.Z-beta.*`.
 2. Download the archive for your Mac:
@@ -155,8 +159,8 @@ mkdir -p ~/.orchestra && echo "beta" > ~/.orchestra/channel
 Requires [Rust](https://rustup.rs/) (stable toolchain).
 
 ```sh
-git clone https://github.com/Chris-Miracle/orch.git
-cd orch
+git clone <repository-url>
+cd <repo-name>
 cargo build --release -p orchestra-cli
 cp target/release/orchestra ~/.local/bin/orchestra
 ```
@@ -225,7 +229,7 @@ orchestra doctor
 orchestra daemon install
 ```
 
-That's it. Orchestra detects your stack, backs up any existing agent files, registers the codebase, renders all provider files, and generates `.orchestra/pilot.md` as the universal entry point.
+That's it. Orchestra detects your stack, backs up any existing agent files, imports them into `orchestra/controls/`, registers the codebase, renders all managed control files, and generates `orchestra/pilot.md` as the universal entry point.
 
 For more control, you can register and sync manually:
 
@@ -242,41 +246,67 @@ orchestra status
 
 ---
 
+## Operational guide
+
+For a full end-to-end walkthrough of the current system, live validation notes, command behavior, daemon lifecycle, recovery coverage, and the task/writeback model, see [guide.md](guide.md).
+
+The current implementation state reflected in that guide is:
+
+- the current source tree is ahead of the installed `orchestra 0.1.10` binary in several areas
+- the guide documents both the live installed-CLI behavior and the newer in-repo `orchestra/controls/` plus `.guide.md` architecture
+- the guide includes a real installed-binary validation pass for `onboard`, `init`, `project`, `status`, `doctor`, `sync`, `diff`, `daemon`, `offboard`, and `reset`
+- the guide records the live issues found during that installed-binary pass and the source-tree follow-up fixes that now address the sync mismatch on modified managed files
+
+---
+
 ## Commands
 
 ### `orchestra onboard`
 
-**The recommended way to add a codebase.** Interactive onboarding that handles the full bootstrap workflow in one step.
+**The recommended way to add a codebase.** Interactive onboarding that handles the full bootstrap workflow in one step — without losing any of your existing agent content.
 
 ```
-orchestra onboard [<path>] [--project <name>] [--yes] [--force]
+orchestra onboard [<path>] [--project <name>] [--yes] [--force] [--migrate prompt|mechanical]
 ```
 
-| Flag              | Description                                            |
-| ----------------- | ------------------------------------------------------ |
-| `<path>`          | Path to codebase root (defaults to current directory)  |
-| `--project`, `-p` | Project group name (prompted interactively if omitted) |
-| `--yes`, `-y`     | Accept detected project type without prompting         |
-| `--force`         | Re-run onboarding even if already registered           |
+| Flag              | Description                                                                         |
+| ----------------- | ----------------------------------------------------------------------------------- |
+| `<path>`          | Path to codebase root (defaults to current directory)                               |
+| `--project`, `-p` | Project group name (prompted interactively if omitted)                              |
+| `--yes`, `-y`     | Accept detected project type without prompting                                      |
+| `--force`         | Re-run onboarding even if already registered                                        |
+| `--migrate`       | Migration mode: `prompt` (recommended) or `mechanical`; if omitted, onboarding asks |
+| `--delete`        | Remove legacy agent files/folders after successful import and backup                |
 
 **What it does:**
 
 1. **Detects** your stack (language, framework, project type) by inspecting manifest files.
 2. **Prompts** to confirm or override the detected project type.
 3. **Registers** the codebase in the Orchestra registry.
-4. **Scans** for existing agent files (`CLAUDE.md`, `.cursor/rules/`, `.github/copilot-instructions.md`, etc.).
+4. **Scans** for existing agent files and agent libraries (`CLAUDE.md`, `.cursor/rules/`, `.github/copilot-instructions.md`, repo-level `AGENT/`, etc.).
 5. **Extracts** conventions and notes from discovered files and merges them into the registry.
-6. **Backs up** all existing agent files to `.orchestra/backup/` with a JSON manifest.
-7. **Removes** the originals (protected — never deletes Orchestra's own managed files).
-8. **Creates** `.orchestra/.gitignore` to exclude backup artifacts.
-9. **Runs a full sync** — renders all provider instruction files, skill artifacts, and `pilot.md`.
+6. **Asks** how you want migration handled when existing files are found: prompt-assisted setup is recommended, mechanical handling is the fallback.
+7. **Backs up** all existing agent files to `orchestra/backup/` with a JSON manifest.
+8. **Imports** those original files into their matching generated destinations inside `orchestra/controls/`, merging conflicts into the managed files and copying extra provider assets alongside Orchestra's own generated files.
+9. **Creates** `orchestra/.gitignore` to exclude backup artifacts.
+10. **Runs a full sync** — renders all managed provider files into `orchestra/controls/` and writes both `orchestra/pilot.md` and `orchestra/.guide.md`.
+11. **Presents migration guidance** — either a one-shot agent prompt or a mechanical summary.
+12. **Optionally deletes** legacy agent files/folders if `--delete` was provided.
+
+> By default, your existing files are preserved in-place during onboarding. Orchestra backs them up, imports their content into the matching generated locations under `orchestra/controls/`, and keeps generic legacy context in `orchestra/.guide.md` so you do not lose rules, subagents, skills, or custom instructions. Pass `--delete` if you want those legacy files/folders removed after a successful import.
+
+**Migration modes:**
+
+- **`--migrate prompt`** _(recommended)_ — After onboarding, Orchestra prints a one-shot setup prompt that you paste into your agent chat. The agent reads the official docs for each provider, reviews `orchestra/controls/` and `orchestra/.guide.md`, reconciles imported content there, and ensures `orchestra/pilot.md` remains the master orchestrator.
+
+- **`--migrate mechanical`** — Orchestra imports your existing files into the matching generated locations under `orchestra/controls/`, merges discovered conventions and notes into the registry automatically, and preserves the originals unless `--delete` is set. No agent involvement is required.
 
 ```sh
-# Onboard the current directory interactively
+# Onboard the current directory interactively (prompt mode — recommended)
 orchestra onboard
 
-# Onboard a specific path, skip prompts
-orchestra onboard ~/Dev/api --project myapp --yes
+# Onboard a specific path, skip prompts, use mechanical migration
+orchestra onboard ~/Dev/api --project myapp --yes --migrate mechanical
 
 # Re-run onboarding for an already-registered codebase
 orchestra onboard --force
@@ -289,10 +319,71 @@ Detected stack: TypeScript / Next.js -> frontend
 Use this project type? [Y/n/change]: Y
 Project name [api]: myapp
 Found 3 existing agent file/folder entries.
-Backed up 3 entries to /Users/you/Dev/api/.orchestra/backup
+Backed up 3 entries to /Users/you/Dev/api/orchestra/backup
+Imported 3 existing file entries into /Users/you/Dev/api/orchestra/controls
 Synced 'api' (12 file updates).
 ✓ Onboarded 'api' under project 'myapp'.
-  Pilot entrypoint: /Users/you/Dev/api/.orchestra/pilot.md
+  Pilot entrypoint: /Users/you/Dev/api/orchestra/pilot.md
+  Control folder: /Users/you/Dev/api/orchestra/controls
+
+────────────────────────────────────────────────────
+  🎼 ORCHESTRA SETUP PROMPT (paste this into your agent chat)
+────────────────────────────────────────────────────
+...
+```
+
+---
+
+### `orchestra offboard`
+
+**Revert onboarding and restore your codebase to its pre-Orchestra state.** Use this if something went wrong during onboarding, or if you want to remove Orchestra from a project.
+
+```
+orchestra offboard [<path>] [--project <name>] [--yes] [--recent]
+```
+
+| Flag              | Description                                                |
+| ----------------- | ---------------------------------------------------------- |
+| `<path>`          | Path to codebase root (defaults to current directory)      |
+| `--project`, `-p` | Project group name (helps locate the codebase in registry) |
+| `--yes`, `-y`     | Skip the confirmation prompt                               |
+| `--recent`        | Frame the action as a recent-onboarding revert             |
+
+**What it does:**
+
+1. Restores all files from `orchestra/backup/` to their original locations using `manifest.json`.
+2. Removes all Orchestra-managed agent files (the files rendered by `orchestra sync`).
+3. Removes the project-local `orchestra/` directory.
+4. Deregisters the codebase from the global registry.
+
+Use `orchestra offboard --recent` when you want an explicit “revert recent onboarding” workflow after a bad setup run.
+
+```sh
+# Offboard the current codebase (interactive — shows what will happen first)
+orchestra offboard
+
+# Offboard a specific path, skip confirmation
+orchestra offboard ~/Dev/api --yes
+```
+
+Example output:
+
+```
+Preparing to offboard 'api' under project 'myapp'.
+
+  ✓ Backup found — pre-onboard files will be restored.
+  ✓ 12 Orchestra-managed agent files will be removed.
+  ✓ orchestra/ directory will be removed.
+  ✓ Codebase will be deregistered from the registry.
+
+Proceed with offboard? This cannot be undone. [y/N]: y
+Restored 3 files from backup.
+Removed 12 Orchestra-managed files.
+Removed orchestra/ directory.
+Deregistered 'api' from registry.
+
+✓ Offboarded 'api' successfully.
+  Your codebase is back to its pre-Orchestra state.
 ```
 
 ---
@@ -308,7 +399,7 @@ orchestra init <path> --project <name> [--type <TYPE>]
 | Flag              | Description                                                   |
 | ----------------- | ------------------------------------------------------------- |
 | `<path>`          | Absolute or relative path to the codebase root                |
-| `--project`, `-p` | Project group name (e.g. `myapp`, `copnow`)                   |
+| `--project`, `-p` | Project group name (e.g. `myapp`, `atlas`)                    |
 | `--type`, `-t`    | Project category: `backend` \| `frontend` \| `mobile` \| `ml` |
 
 **Examples:**
@@ -383,7 +474,7 @@ orchestra sync <codebase> --dry-run
 | `--all`      | Sync every registered codebase                        |
 | `--dry-run`  | Show what would be written without touching any files |
 
-Sync renders all agent-specific instruction files, skill artifacts, and the `.orchestra/pilot.md` entry point. Writes are hash-gated — unchanged files are skipped for performance.
+Sync renders all agent-specific instruction files and skill artifacts into `orchestra/controls/`, plus the `orchestra/pilot.md` entry point. Writes are hash-gated — unchanged files are skipped for performance.
 
 **Examples:**
 
@@ -482,7 +573,7 @@ orchestra doctor [--json]
 | Daemon status      | Whether the daemon process is running and responsive      |
 | Registry integrity | Whether all registry YAML files load without errors       |
 | Codebase paths     | Whether all registered codebase directories exist on disk |
-| Pilot presence     | Whether every codebase has `.orchestra/pilot.md`          |
+| Pilot presence     | Whether every codebase has `orchestra/pilot.md`           |
 | Staleness summary  | Count of current / stale / other codebases                |
 | Managed files      | Whether all expected agent output files exist             |
 
@@ -504,7 +595,7 @@ Orchestra Doctor — v0.1.9
   ✓ daemon status: running: true
   ✓ registry integrity: 3 codebase entries loaded
   ✓ codebase paths: all registered codebase paths exist
-  ✓ pilot.md presence: all codebases have .orchestra/pilot.md
+  ✓ pilot.md presence: all codebases have orchestra/pilot.md
   ✓ staleness summary: current: 3, stale: 0, other: 0
   ✓ managed files presence: all expected managed files are present
 ```
@@ -576,7 +667,7 @@ orchestra update [--stable] [--beta]
 #### How it works
 
 - The installed binary knows its **release channel** (`stable` or `beta`) from when it was built by CI. This is stored in `~/.orchestra/channel` after install.
-- On `stable`, it checks [`/releases/latest`](https://github.com/Chris-Miracle/orch/releases/latest) — always a non-pre-release.
+- On `stable`, it checks the repository's latest stable release endpoint.
 - On `beta`, it checks the most recent pre-release — the latest `vX.Y.Z-beta.*` build.
 - If a newer version is found, it downloads the tarball for your architecture, extracts it, and replaces the running binary in-place.
 - If already up to date, it exits cleanly.
@@ -628,12 +719,70 @@ Your channel preference is saved to `~/.orchestra/channel` and respected on ever
 
 ---
 
+### `orchestra reset`
+
+**Wipe Orchestra and all its managed files, then start fresh.** This is a full uninstall of Orchestra's configuration — binary stays intact.
+
+```
+orchestra reset --confirm [--restore-backups]
+```
+
+| Flag                | Description                                                           |
+| ------------------- | --------------------------------------------------------------------- |
+| `--confirm`         | Required safety flag — must be passed explicitly to prevent accidents |
+| `--restore-backups` | Restore pre-onboard agent files from backups before wiping            |
+
+**What it does:**
+
+1. Iterates every registered codebase and removes all Orchestra-managed agent files.
+2. Removes each codebase's `./orchestra/` directory.
+3. Optionally restores pre-onboard backups from each `orchestra/backup/` first.
+4. Wipes `~/.orchestra/` entirely (registry, hashes, daemon socket, channel).
+5. Prints reinstall instructions.
+
+```sh
+# Full wipe — removes all Orchestra files and registry
+orchestra reset --confirm
+
+# Full wipe + restore pre-onboard files from backup first
+orchestra reset --confirm --restore-backups
+```
+
+Example output:
+
+```
+🎼 Orchestra Reset
+
+  Found 2 registered codebase(s):
+    • myapp / api (/Users/you/Dev/myapp/api)
+    • myapp / web (/Users/you/Dev/myapp/web)
+
+  Processing 'api'...
+    ✓ Removed 12 managed agent files.
+    ✓ Removed orchestra/.
+  Processing 'web'...
+    ✓ Removed 11 managed agent files.
+    ✓ Removed orchestra/.
+
+  ✓ Removed ~/.orchestra/ (registry, hashes, channel).
+
+✓ Orchestra has been fully reset.
+
+  To set up a fresh installation:
+    orchestra onboard
+
+  To reinstall the latest version:
+    curl -fsSL <raw-install-script-url> | sh
+```
+
+---
+
 ## Pilot entry point
 
-Every synced codebase gets `.orchestra/pilot.md` — the universal entry point that all agents read first. Pilot includes:
+Every synced codebase gets `orchestra/pilot.md` — the universal entry point that all agents read first. It also gets `orchestra/.guide.md` for durable background context. Pilot includes:
 
-- **Quick context** — codebase name, root path, active task count, and detected stack.
-- **Workflow steps** — read tasks, implement, test, report via writeback.
+- **Quick context** — codebase name, active task count, detected stack, and links to the hidden guide and controls tree.
+- **Workflow steps** — read pilot first, inspect `orchestra/controls/`, delegate when needed, implement, test, report via writeback.
 - **Command reference** — the Orchestra commands available to agents.
 - **Writeback protocol** — how agents report updates back to the registry.
 - **Subagent delegation strategy** — guidelines for splitting work across subagents safely.
@@ -646,43 +795,36 @@ Pilot is regenerated on every sync, so agents always see current context.
 
 ## Generated files
 
-After syncing a codebase, Orchestra creates a `.orchestra/` directory alongside the provider-specific files:
+After syncing a codebase, Orchestra creates a visible `orchestra/` directory in the repo root:
 
 ```
 your-codebase/
-├── .orchestra/
-│   ├── pilot.md              # Universal agent entry point
-│   ├── .gitignore            # Excludes backup/ from version control
-│   └── backup/               # Pre-onboard backups (if any)
-│       └── manifest.json     # What was backed up and when
-├── CLAUDE.md                 # Claude primary instructions
-├── .claude/
-│   ├── rules/orchestra.md    # Claude rules file
-│   └── agents/
-│       ├── orchestra-worker.md    # Claude subagent: worker
-│       └── orchestra-reviewer.md  # Claude subagent: reviewer
-├── .cursor/
-│   ├── rules/orchestra.mdc       # Cursor rules
-│   └── skills/orchestra-sync/skill.md
-├── .windsurf/
-│   ├── rules/orchestra.md
-│   └── skills/orchestra-sync/skill.md
-├── .github/
-│   ├── copilot-instructions.md
-│   └── instructions/orchestra.instructions.md
-├── AGENTS.md                 # Codex primary instructions
-├── .codex/skills/orchestra-sync/skill.md
-├── GEMINI.md                 # Gemini primary instructions
-├── .gemini/
-│   ├── settings.json
-│   ├── styleguide.md
-│   └── skills/orchestra-sync/skill.md
-├── .clinerules/orchestra.md
-├── .agents/skills/orchestra-sync/skill.md  # Cline skill
-├── .agent/
-│   ├── rules/orchestra.md                  # Antigravity rules
-│   └── skills/orchestra-sync/skill.md
+├── orchestra/
+│   ├── .guide.md                   # Hidden durable repo context
+│   ├── pilot.md                    # Universal agent entry point
+│   ├── .gitignore                  # Excludes backup/ from version control
+│   ├── backup/                     # Pre-onboard backups (if any)
+│   │   └── manifest.json           # What was backed up and when
+│   └── controls/
+│       ├── CLAUDE.md               # Claude primary instructions
+│       ├── AGENTS.md               # Codex primary instructions
+│       ├── GEMINI.md               # Gemini primary instructions
+│       ├── .claude/
+│       │   ├── rules/orchestra.md
+│       │   └── agents/
+│       ├── .cursor/
+│       │   ├── rules/orchestra.mdc
+│       │   └── skills/orchestra-sync/skill.md
+│       ├── .windsurf/
+│       ├── .github/
+│       ├── .codex/
+│       ├── .gemini/
+│       ├── .clinerules/
+│       ├── .agents/
+│       └── .agent/
 ```
+
+Generated Orchestra files and imported user-owned agent material can coexist in the same `orchestra/controls/` tree. When a path conflicts, Orchestra keeps the managed file and preserves imported content either inline or as adjacent `*.imported.*` files.
 
 All files are rendered from shared Tera templates with 9 common partials (header, tasks, stack, conventions, skills, orchestra workflow, subagent delegation, worktree instructions). Writes are hash-gated — unchanged files are skipped.
 
@@ -690,7 +832,24 @@ All files are rendered from shared Tera templates with 9 common partials (header
 
 ## Writeback protocol
 
-Agents can report updates back to the Orchestra registry by embedding update blocks inside any managed file. The daemon watches for these changes and applies them automatically.
+Managed provider entrypoints expose two structured writeback surfaces. The daemon watches for these changes and applies them automatically.
+
+The canonical task surface is the editable task block:
+
+```md
+<!-- orchestra:tasks -->
+
+| ID    | Title                   | Status      | Description                         |
+| ----- | ----------------------- | ----------- | ----------------------------------- |
+| T-001 | Ship registry migration | in_progress | Coordinate rollout across providers |
+| T-002 | Remove stale imports    | done        | Backfill cleanup after sync         |
+
+<!-- /orchestra:tasks -->
+```
+
+Editing that block in any managed provider file writes the task snapshot back to the registry and re-syncs the other provider files so they all converge on the same task state.
+
+Explicit mutations still use the update block:
 
 ```md
 <!-- orchestra:update -->
@@ -715,7 +874,7 @@ codebase-hint /path/to/codebase
 | `note-added "<text>"`       | Add a freeform note                                                   |
 | `codebase-hint <path>`      | Hint which codebase owns this file (for delegated/worktree scenarios) |
 
-The block is stripped from the file after processing. If parsing fails, an error block is written back so the agent can see what went wrong.
+Task-block reconciliation runs before explicit update commands, so explicit commands can intentionally override the snapshot captured in the table. The update block is stripped from the file after processing. If parsing fails, an error block is written back so the agent can see what went wrong.
 
 ---
 
@@ -734,6 +893,14 @@ Orchestra stores its registry in your home directory:
 ```
 
 Each `.yaml` file contains the codebase path, project type, detected stack, tasks, conventions, and notes. All files are human-readable and safe to inspect or commit.
+
+**Shortcut to open directly:** To jump straight to your Orchestra registry without toggling hidden files globally, run this in your terminal:
+
+```sh
+open ~/.orchestra/projects/.
+```
+
+This opens Finder directly at the `projects/` directory so you can inspect or edit your registry YAML files.
 
 ---
 
@@ -770,8 +937,8 @@ Orchestra is open source under the [MIT License](LICENSE). Contributions are wel
 1. **Fork** the repository on GitHub.
 2. **Clone** your fork:
    ```sh
-   git clone https://github.com/<your-username>/orch.git
-   cd orch
+   git clone <your-fork-url>
+   cd <repo-name>
    ```
 3. **Create a branch** off `beta`:
    ```sh
@@ -800,7 +967,7 @@ cargo build -p orchestra-cli && cp target/debug/orchestra ~/.local/bin/orchestra
 
 ### Filing issues
 
-If you find a bug or have a feature request, [open an issue](https://github.com/Chris-Miracle/orch/issues). Please include:
+If you find a bug or have a feature request, open an issue on the repository host. Please include:
 
 - Your macOS version and chip (Apple Silicon / Intel)
 - The output of `orchestra --version`

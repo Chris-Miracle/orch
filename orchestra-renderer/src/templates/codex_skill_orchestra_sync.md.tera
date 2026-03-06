@@ -7,7 +7,7 @@ This skill keeps Codex execution synchronized with Orchestra.
 
 ## Required Flow
 
-1. Read `.orchestra/pilot.md` first.
+1. Read `orchestra/pilot.md` first.
 2. Execute tasks according to current status and constraints.
 3. Report outcomes via valid writeback commands.
 4. Avoid mutating generated orchestration files directly.

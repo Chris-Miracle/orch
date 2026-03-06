@@ -1,0 +1,12 @@
+
+{
+  "codebase": "orch",
+  "root": ".",
+  "projects": [{"name":"orch","project_type":"backend"}],
+  "context": {
+    "active_task_count": 0,
+    "managed_by": "orchestra",
+    "direction_file": "orchestra/pilot.md",
+    "context_file": "orchestra/.guide.md"
+  }
+}

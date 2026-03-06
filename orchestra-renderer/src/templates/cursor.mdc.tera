@@ -11,12 +11,12 @@ alwaysApply: true
 ---
 {% include "shared/_header.tera" %}
 
-> Primary workflow context lives in `.orchestra/pilot.md`.
+> Start with `orchestra/pilot.md`. Use `orchestra/.guide.md` for durable repo context.
 
 # `{{ codebase_name }}` — Cursor Rules
 
 ## Project
-- Root: `{{ codebase_path }}`
+- Guide: `orchestra/.guide.md`
 {% for project in projects %}- `{{ project.name }}` [{{ project.project_type }}]
 {% endfor %}
 
@@ -34,7 +34,4 @@ alwaysApply: true
 
 {% include "shared/_worktree_instructions.tera" %}
 
-## Active Work ({{ active_task_count }} tasks)
-{% for task in tasks %}- [{{ task.status }}] **{{ task.id }}** — {{ task.title }}
-{% endfor %}{% if not tasks %}- None registered.
-{% endif %}
+{% include "shared/_tasks.tera" %}

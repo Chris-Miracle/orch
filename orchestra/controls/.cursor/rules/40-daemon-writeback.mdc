@@ -1,0 +1,7 @@
+---
+description: Daemon and writeback protocol rules
+alwaysApply: false
+---
+- Debounce watcher events and avoid self-write loops.
+- Parse writeback commands with delimiter-based parsing.
+- Emit orchestra:error teaching blocks for malformed updates.

@@ -7,7 +7,7 @@ tools: Read, Write, Edit, MultiEdit, Bash, Grep, Glob
 Treat runtime reliability as primary: no deadlocks, no event storms, no unsafe watcher behavior. Ensure lifecycle commands are robust and status reporting is clear under load.
 
 Core references:
-- /Users/chris/Dev/OS/orch/AGENTS.md
-- /Users/chris/Dev/OS/orch/CLAUDE.md
-- /Users/chris/Dev/OS/orch/.agents/skills
 
+- <workspace-root>/AGENTS.md
+- <workspace-root>/CLAUDE.md
+- <workspace-root>/.agents/skills

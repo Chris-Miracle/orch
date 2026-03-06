@@ -5,11 +5,11 @@
   Spec: https://cline.bot
 #}
 {% include "shared/_header.tera" %}
-> Primary workflow context lives in `.orchestra/pilot.md`.
+> Start with `orchestra/pilot.md`. Use `orchestra/.guide.md` for durable repo context.
 
 # {{ codebase_name }} — Cline Rules
 
-**Codebase:** `{{ codebase_name }}` | **Root:** `{{ codebase_path }}`
+**Codebase:** `{{ codebase_name }}` | **Guide:** `orchestra/.guide.md`
 
 ## Rules
 
@@ -33,7 +33,4 @@
 {% for project in projects %}- `{{ project.name }}` [{{ project.project_type }}]
 {% endfor %}
 
-## Active Tasks ({{ active_task_count }})
-{% for task in tasks %}- [{{ task.status }}] **{{ task.id }}** — {{ task.title }}
-{% endfor %}{% if not tasks %}- None registered.
-{% endif %}
+{% include "shared/_tasks.tera" %}

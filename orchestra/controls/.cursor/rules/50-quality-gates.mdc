@@ -1,0 +1,7 @@
+---
+description: Quality and safety gates
+alwaysApply: true
+---
+- Require build + clippy + tests for substantive changes.
+- Test both happy path and error path.
+- Never introduce destructive file behavior by default.

@@ -5,7 +5,7 @@
 #}
 {% include "shared/_header.tera" %}
 
-> Primary workflow context lives in `.orchestra/pilot.md`.
+> Start with `orchestra/pilot.md`. Use `orchestra/.guide.md` for durable repo context.
 
 # {{ codebase_name }}
 
@@ -16,7 +16,7 @@ need to re-explain the project at the start of each session.
 ## Project Overview
 
 - **Codebase:** `{{ codebase_name }}`
-- **Root:** `{{ codebase_path }}`
+- **Guide:** `orchestra/.guide.md`
 - **Active tasks:** {{ active_task_count }}
 
 {% include "shared/_stack.tera" %}
